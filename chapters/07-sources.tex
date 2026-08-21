@@ -1,0 +1,356 @@
+\chapter{Source Texts and Their Coverage}
+\label{ch:sources}
+
+The course requires that any textbook consulted beyond the prescribed one be
+identified in full, and that the portion of its table of contents relied upon be
+reproduced so that the correspondence with this paper is verifiable.
+This chapter
+does that.
+It also states, for each source, which chapter of this paper draws on
+it and for what.
+
+Sources are grouped into three tiers.
+Tier~1 texts are read in full and carry the
+technical weight of the paper.
+Tier~2 texts are consulted for specific treatments
+and cross-checks.
+Tier~3 comprises the vendor architecture manuals, which are the
+authoritative statement of what each shipping machine actually promises and are
+therefore the primary source wherever this paper makes a claim about a particular
+instruction set.
+
+\section{Tier 1: Primary Texts}
+
+\subsection{Sarangi, \emph{Basic Computer Architecture} (prescribed)}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+Author      & Smruti R. Sarangi \\
+Title       & Basic Computer Architecture \\
+Version     & 3.09 (8 October 2025) \\
+Publisher   & White Falcon Publishing \\
+Licence     & CC BY-ND 4.0; PDF freely available \\
+URL         & \url{https://srsarangi.github.io/archbook/archbook.pdf} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent Relevant portion of the table of contents:
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}llr@{}}
+\toprule
+\textbf{\S} & \textbf{Title} & \textbf{Page} \\
+\midrule
+\multicolumn{3}{@{}l}{\textit{Chapter 10 --- Principles of Pipelining}} \\
+10.4      & Pipeline Hazards                              & 420 \\
+10.9      & Performance Metrics                           & 463 \\
+10.11.4   & Out-of-Order Pipelines                        & 492 \\
+\addlinespace
+\multicolumn{3}{@{}l}{\textit{Chapter 11 --- The Memory System}} \\
+11.1      & Overview (locality, hierarchy, cache blocks)  & 506 \\
+11.2      & Caches                                        & 517 \\
+11.3      & The Memory System                             & 532 \\
+\addlinespace
+\multicolumn{3}{@{}l}{\textit{Chapter 12 --- Multiprocessor Systems}} \\
+12.2.2    & Shared Memory vs Message Passing              & 571 \\
+12.2.3    & Amdahl's Law                                  & 576 \\
+12.3      & Design Space of Multiprocessors               & 578 \\
+12.4      & MIMD Multiprocessors                          & 579 \\
+12.4.1    & Logical Point of View                         & 579 \\
+12.4.2    & Coherence                                     & 581 \\
+12.4.3    & \textbf{Memory Consistency}                   & 583 \\
+12.4.4    & Physical View of Memory                       & 593 \\
+12.4.5    & Shared Caches                                 & 596 \\
+12.4.6    & Coherent Private Caches                       & 596 \\
+12.4.7    & Implementing a Memory Consistency Model*      & 603 \\
+12.4.8    & Multithreaded Processors                      & 608 \\
+12.6      & Interconnection Networks                      & 620 \\
+\addlinespace
+\multicolumn{3}{@{}l}{\textit{Appendix A --- Case Studies of Real Processors}} \\
+A.1.2     & ARM Cortex-A8                                 & 734 \\
+A.1.3     & ARM Cortex-A15                                & 736 \\
+A.3.2     & Intel Sandy Bridge                            & 746 \\
+\bottomrule
+\end{tabular}
+\caption{Sections of the prescribed text spanned by this paper. Sections marked
+$*$ are designated advanced in the text.}
+\label{tab:toc-archbook}
+\end{table}
+
+\noindent \textbf{Use in this paper.} \S12.4.2 and \S12.4.3 are the sections this
+paper extends; they supply the coherence/consistency distinction developed in
+Chapter~3 and the sequential-consistency treatment developed in Chapter~4.
+\S12.4.7 is the direct antecedent of the implementation discussion. \S11.2 and
+\S10.11.4 supply the microarchitectural background of Chapter~2, \S10.9 the
+performance-metric framework used in Chapter~6, and \S12.6 the interconnect
+parameters of the simulator.
+
+\subsection{Sarangi, \emph{Next-Gen Computer Architecture}}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+Author      & Smruti R. Sarangi \\
+Title       & Next-Gen Computer Architecture: Till the End of Silicon \\
+Publisher   & White Falcon Publishing, October 2023 \\
+ISBN        & 8119510143 \\
+Note        & First edition published by McGraw-Hill (2021) as
+              \emph{Advanced Computer Architecture}, ISBN 9789390727490 \\
+Licence     & CC BY-ND 4.0; PDF freely available \\
+URL         & \url{https://www.cse.iitd.ac.in/~srsarangi/advbook/} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+This is the companion volume to the prescribed text, aimed at final-year
+undergraduates, and it is the single most important source for this paper after
+the prescribed book.
+Chapter~9 is devoted entirely to the subject and runs to
+approximately 118 pages.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}lp{7.4cm}l@{}}
+\toprule
+\textbf{\S} & \textbf{Title} & \textbf{Used in} \\
+\midrule
+\multicolumn{3}{@{}l}{\textit{Chapter 9 --- Multicore Systems: Coherence,
+  Consistency and Transactional Memory}} \\
+9.1 & Parallel programming and hardware threads          & Ch.~2 \\
+9.2 & Theoretical foundations                            & Ch.~4 \\
+9.3 & Sequential consistency, PLSC, and coherence        & Ch.~3, Ch.~4 \\
+9.4 & \textbf{Execution witnesses, access graphs, causal graphs} & Ch.~4 \\
+9.5 & Cache coherence: snoopy and directory protocols    & Ch.~3 \\
+9.6 & Advanced directory protocols and atomic operations & Ch.~3, Ch.~8 \\
+9.7 & Memory models and data races                       & Ch.~4, Ch.~6 \\
+9.8 & Methods to detect races                            & Ch.~10 \\
+9.9 & Transactional memory                               & Ch.~11 \\
+\addlinespace
+\multicolumn{3}{@{}l}{\textit{Supporting chapters}} \\
+4.3 & Load store queue                                   & Ch.~2 \\
+5.1 & Aggressive speculation                             & Ch.~9 \\
+7   & Caches                                             & Ch.~2 \\
+8   & On-chip network                                    & Ch.~8 \\
+App.~B & Tejas Architectural Simulator                   & Ch.~8 \\
+\bottomrule
+\end{tabular}
+\caption{Sections of \emph{Next-Gen Computer Architecture} consulted. Page
+numbers are omitted because they differ between the McGraw-Hill and White Falcon
+printings and between PDF versions; section numbering is stable.}
+\label{tab:toc-nextgen}
+\end{table}
+
+\noindent \textbf{Use in this paper.} \S9.4 supplies the formalism of Chapter~4.
+The execution-witness and access-graph notation used throughout this paper is
+Sarangi's, chosen in preference to the alternative formulations in the literature
+so that the notation is continuous with the course.
+\S9.3's treatment of
+per-location sequential consistency is the source of the PLSC characterisation of
+coherence in \S\ref{sec:invariants}.
+\S9.7 and \S9.8 underpin the data-race
+material of \S\ref{sec:drf} and the verification design of Chapter~10.
+Appendix~B documents the Tejas simulator, evaluated as an alternative to the
+purpose-built simulator of Chapter~8.
+
+\subsection{Nagarajan, Sorin, Hill and Wood, \emph{A Primer on Memory
+Consistency and Cache Coherence}}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+Authors     & Vijay Nagarajan, Daniel J. Sorin, Mark D. Hill, David A. Wood \\
+Title       & A Primer on Memory Consistency and Cache Coherence \\
+Edition     & Second edition, 2020 \\
+Series      & Synthesis Lectures on Computer Architecture \\
+Publisher   & Springer Nature, Cham \\
+Access      & Open access via the OAPEN Library \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}rp{8.2cm}l@{}}
+\toprule
+\textbf{Ch.} & \textbf{Title} & \textbf{Used in} \\
+\midrule
+1  & Introduction to Consistency and Coherence            & Ch.~1 \\
+2  & Coherence Basics                                     & Ch.~3 \\
+3  & Memory Consistency Motivation and Sequential Consistency & Ch.~1, Ch.~4 \\
+4  & Total Store Order and the x86 Memory Model           & Ch.~4, Ch.~7 \\
+5  & Relaxed Memory Consistency                           & Ch.~4 \\
+6  & Coherence Protocols                                  & Ch.~3 \\
+7  & Snooping Coherence Protocols                         & Ch.~3 \\
+8  & Directory Coherence Protocols                        & Ch.~3, Ch.~8 \\
+9  & Advanced Topics in Coherence                         & Ch.~3 \\
+10 & Consistency and Coherence for Heterogeneous Systems  & Ch.~12 \\
+11 & Specifying and Validating Memory Consistency Models  & Ch.~10 \\
+\bottomrule
+\end{tabular}
+\caption{Chapter listing of the Primer, second edition. Page ranges vary between
+the Springer and OAPEN printings and should be cited from the reader's own copy.}
+\label{tab:toc-primer}
+\end{table}
+
+\noindent \textbf{Use in this paper.} This is the standard reference on the
+subject and the source of the SWMR and data-value invariants stated in
+\S\ref{sec:invariants}. Chapters~3--5 are the direct source for the model
+definitions of Chapter~4; Chapter~11 informs the verification methodology of
+Chapter~10.
+Where its notation and Sarangi's differ, this paper follows Sarangi's
+and notes the correspondence.
+
+\section{Tier 2: Supporting Texts}
+
+\subsection{Hennessy and Patterson, \emph{Computer Architecture: A Quantitative
+Approach}}
+
+Sixth edition, Morgan Kaufmann, 2019.
+Chapter~5, \emph{Thread-Level Parallelism},
+is the relevant portion:
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{\S} & \textbf{Title} \\
+\midrule
+5.1 & Introduction \\
+5.2 & Centralized Shared-Memory Architectures \\
+5.3 & Performance of Symmetric Shared-Memory Multiprocessors \\
+5.4 & Distributed Shared-Memory and Directory-Based Coherence \\
+5.5 & Synchronization: The Basics \\
+5.6 & \textbf{Models of Memory Consistency: An Introduction} \\
+5.7 & Cross-Cutting Issues \\
+5.8 & Putting It All Together: Multicore Processors and Their Performance \\
+\bottomrule
+\end{tabular}
+\caption{Hennessy \& Patterson, 6th ed., Chapter 5.}
+\label{tab:toc-hp}
+\end{table}
+
+\noindent \textbf{Use in this paper.} \S5.6 is a compact treatment of consistency
+that is useful as a cross-check but does not go beyond what the Tier~1 sources
+provide.
+\S5.3 and \S5.8 are consulted for the benchmarking methodology of
+Chapter~6, since the quantitative framework of this text is the standard one for
+reporting multiprocessor performance.
+
+\subsection{Culler, Singh and Gupta, \emph{Parallel Computer Architecture}}
+
+Morgan Kaufmann, 1998.
+Dated in its hardware examples, but it contains the most
+extended textbook treatment of relaxed consistency models available, written
+while the debate this paper examines was still live --- which makes it a primary
+source for Chapter~5 as much as a textbook.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}rll@{}}
+\toprule
+\textbf{Ch.} & \textbf{Title} & \textbf{Used in} \\
+\midrule
+5 & Shared Memory Multiprocessors (\S5.2 coherence, \S5.3 consistency) & Ch.~3, Ch.~4 \\
+6 & Snoop-based Multiprocessor Design                                  & Ch.~3 \\
+8 & Directory-based Cache Coherence                                    & Ch.~3 \\
+9 & Hardware-Software Tradeoffs (\S9.1 relaxed memory consistency models) & Ch.~4, Ch.~5 \\
+\bottomrule
+\end{tabular}
+\caption{Culler, Singh \& Gupta, chapters consulted.}
+\label{tab:toc-culler}
+\end{table}
+
+\subsection{Herlihy, Shavit, Luchangco and Spear, \emph{The Art of
+Multiprocessor Programming}}
+
+Second edition, Morgan Kaufmann, 2020.
+Consulted for the software side: the
+correctness conditions for concurrent objects, spin-lock implementations, and the
+lock-free structures used as simulator workloads in Chapter~6
+(Treiber stack, Michael--Scott queue).
+Appendix~B of that text covers the hardware
+memory model from the programmer's perspective and is a useful counterweight to
+the architect's framing of the Tier~1 sources.
+
+\section{Tier 3: Architecture Manuals}
+
+Where this paper states what a particular instruction set guarantees, the vendor
+manual is the authoritative source and is cited in preference to any textbook.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}p{3.1cm}p{5.0cm}p{5.2cm}@{}}
+\toprule
+\textbf{ISA} & \textbf{Document} & \textbf{Relevant portion} \\
+\midrule
+x86-64 & Intel 64 and IA-32 Architectures Software Developer's Manual, Vol.~3A
+       & Chapter on Memory Ordering; the store-buffer and \code{MFENCE}
+         specification \\
+AArch64 & Arm Architecture Reference Manual for A-profile
+        & Ch.~B2, The AArch64 Application Level Memory Model; \code{DMB},
+          \code{LDAR}, \code{STLR} \\
+RISC-V & The RISC-V Instruction Set Manual, Vol.~I: Unprivileged ISA
+       & The RVWMO chapter and the \code{FENCE} bit encoding \\
+Linux  & \code{Documentation/memory-barriers.txt} and the Linux Kernel Memory
+         Model (\code{tools/memory-model})
+       & An operational specification maintained by practitioners; used in
+         Ch.~5 and Ch.~11 \\
+\bottomrule
+\end{tabular}
+\caption{Architecture manuals consulted.}
+\label{tab:manuals}
+\end{table}
+
+\section{Research Literature}
+
+The papers cited in Chapter~5 are the primary literature of the field and are
+listed in the bibliography rather than tabulated here.
+Six are load-bearing for
+this paper's argument and are read in full rather than consulted:
+Lamport~\cite{lamport1979multiprocessor}, Dubois et
+al.~\cite{dubois1986memory}, Adve and Hill~\cite{adve1990weak}, Adve and
+Gharachorloo's tutorial~\cite{adve1996shared}, Gniady et
+al.~\cite{gniady1999sc}, and Alglave et al.~\cite{alglave2014herding}.
+
+\section{A Note on Notation}
+
+Four of the sources above use incompatible notation for the same objects.
+The
+conventions adopted in this paper are those of Sarangi's
+\emph{Next-Gen} \S9.4, on the grounds of continuity with the course.
+Table~\ref{tab:notation} records the correspondence so that a reader working from
+a different source can follow.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{This paper} & \textbf{Meaning} & \textbf{Primer} & \textbf{Alglave et al.} \\
+\midrule
+$\po$   & program order                & program order      & \texttt{po} \\
+$\rf$   & reads-from                   & \texttt{rf}        & \texttt{rf} \\
+$\co$   & coherence order              & memory order (per address) & \texttt{co} \\
+$\fr$   & from-read                    & --- (derived)      & \texttt{fr} \\
+$\ppo$  & preserved program order      & ordering rules     & \texttt{ppo} \\
+PLSC    & per-location sequential consistency & SWMR + data value & \texttt{sc-per-location} \\
+\bottomrule
+\end{tabular}
+\caption{Correspondence of notation across sources.}
+\label{tab:notation}
+\end{table}

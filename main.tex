@@ -1,0 +1,117 @@
+%=======================================================================
+%  ELL305 Computer Architecture -- Term Paper
+%  Version v0.1
+%
+%  Formatting per course specification:
+%    A4 paper, 1 inch margins, 0.5 inch left gutter, 11pt, single spaced
+%    All figures drawn in TikZ / circuitikz
+%    References managed in Zotero, exported to refs.bib, rendered via BibTeX
+%=======================================================================
+\documentclass[11pt,a4paper,oneside]{report}
+
+%----------------------- page geometry --------------------------------
+\usepackage[a4paper,margin=1in,bindingoffset=0.5in]{geometry}
+\usepackage{setspace}
+\singlespacing
+
+%----------------------- encoding and fonts ---------------------------
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}   % if missing: apt install texlive-fonts-recommended
+\usepackage{microtype} % needs scalable fonts; comment out if it errors
+
+%----------------------- maths and symbols ----------------------------
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{bm}
+
+%----------------------- figures and tables ---------------------------
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+
+%----------------------- TikZ -----------------------------------------
+\usepackage{tikz}
+\usepackage{circuitikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,backgrounds,
+                calc,decorations.pathreplacing,patterns,matrix,chains}
+
+% ---- house style for all block diagrams in this paper ----
+\tikzset{
+  unit/.style   = {draw, rounded corners=2pt, minimum width=26mm,
+                   minimum height=9mm, align=center, font=\small},
+  core/.style   = {unit, fill=blue!8},
+  buf/.style    = {unit, fill=orange!15},
+  mem/.style    = {unit, fill=black!6},
+  net/.style    = {unit, fill=green!8, minimum width=90mm, minimum height=7mm},
+  flow/.style   = {-{Latex[length=2mm]}, thick},
+  slow/.style   = {-{Latex[length=2mm]}, thick, dashed},
+  lbl/.style    = {font=\scriptsize\itshape, align=center},
+}
+
+%----------------------- code listings --------------------------------
+\usepackage{listings}
+\usepackage{xcolor}
+\definecolor{lstbg}{gray}{0.97}
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  backgroundcolor=\color{lstbg},
+  keywordstyle=\bfseries,
+  commentstyle=\itshape\color{black!55},
+  numbers=left, numberstyle=\tiny\color{black!45}, numbersep=6pt,
+  frame=single, rulecolor=\color{black!25},
+  breaklines=true, showstringspaces=false,
+  captionpos=b, xleftmargin=14pt, framexleftmargin=14pt,
+}
+
+%----------------------- cross references -----------------------------
+\usepackage[hidelinks]{hyperref}
+\usepackage{cleveref}
+
+%----------------------- theorem environments -------------------------
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[chapter]
+\newtheorem{example}{Example}[chapter]
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[chapter]
+
+%----------------------- convenience macros ---------------------------
+\newcommand{\po}{\ensuremath{\xrightarrow{\text{po}}}}   % program order
+\newcommand{\rf}{\ensuremath{\xrightarrow{\text{rf}}}}   % reads-from
+\newcommand{\co}{\ensuremath{\xrightarrow{\text{co}}}}   % coherence order
+\newcommand{\fr}{\ensuremath{\xrightarrow{\text{fr}}}}   % from-read
+\newcommand{\ppo}{\ensuremath{\xrightarrow{\text{ppo}}}} % preserved prog. order
+\newcommand{\Ld}[1]{\ensuremath{\mathrm{L}(#1)}}
+\newcommand{\St}[1]{\ensuremath{\mathrm{S}(#1)}}
+\newcommand{\code}[1]{\texttt{#1}}
+
+%=======================================================================
+\begin{document}
+
+\input{chapters/00-title}
+
+\pagenumbering{roman}
+\input{chapters/00-abstract}
+\tableofcontents
+\listoffigures
+\listoftables
+\cleardoublepage
+
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+\input{chapters/01-introduction}
+\input{chapters/02-background}
+\input{chapters/03-coherence}
+\input{chapters/04-models}
+\input{chapters/05-history}
+\input{chapters/06-methodology}
+\input{chapters/07-sources}
+
+\bibliographystyle{plain}
+\bibliography{refs}
+
+\end{document}

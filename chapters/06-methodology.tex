@@ -1,0 +1,312 @@
+\chapter{Methodology}
+\label{ch:methodology}
+
+This chapter specifies the experiments whose results appear in later versions of
+this paper.
+It is stated in advance and in full so that the design may be
+evaluated independently of the outcome.
+
+Three instruments are used, answering three different kinds of question.
+Litmus testing on real hardware establishes what commercially available machines
+actually do.
+A configurable simulator establishes what each memory model costs,
+holding everything else fixed. An axiomatic checker establishes that the simulator
+implements the models it claims to implement.
+
+\section{Instrument 1: Litmus Testing on Hardware}
+\label{sec:litmus-method}
+
+\subsection{Test Harness}
+
+Each litmus test is realised as a C program with one pinned thread per core,
+executing the test body in a loop of $N = 10^7$ iterations.
+Each iteration
+resets the shared variables, releases the threads, executes the body, and records
+the observed final state.
+The design constraints are as follows.
+
+\paragraph{Thread placement.} Threads are pinned with
+\code{pthread\_setaffinity\_np}. Placement is a controlled variable, not an
+incidental one: two threads on sibling SMT contexts of the same physical core
+share a store buffer and will produce different results from two threads on
+distinct cores.
+The topology reported by \code{lscpu -e} is recorded and reported
+with every result.
+
+\paragraph{Synchronisation between iterations.} A conventional
+\code{pthread\_barrier} is unsuitable: barriers contain full fences, which suppress
+precisely the window under measurement.
+A lightweight sense-reversing spin barrier
+built from relaxed atomics is used instead, and its own fence content is documented.
+
+\paragraph{Preventing compiler interference.} Shared variables are declared
+\code{\_Atomic} and accessed with \code{memory\_order\_relaxed}, which forbids the
+compiler from eliminating or reordering the accesses while emitting no hardware
+fences.
+Using \code{volatile} instead is common practice but is not a substitute:
+\code{volatile} constrains the compiler only with respect to other volatile
+accesses.
+Both variants are compiled and compared, and the difference is itself
+reported.
+
+\paragraph{Variable placement.} Each shared variable is placed on its own cache
+line by padding to $64$ bytes.
+Without this, false sharing changes the coherence
+behaviour and therefore the observation rate.
+
+\subsection{Platforms}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Target platforms. Exact models to be recorded in the results chapter.}
+\label{tab:platforms}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Class} & \textbf{Model} & \textbf{Expected} & \textbf{Role} \\
+\midrule
+x86-64  & TSO      & SB observable; MP, LB not & strong-model baseline \\
+AArch64 & ARMv8    & SB, MP, LB observable; IRIW not & weak-model comparison \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The AArch64 platform may be a single-board computer, an Android device under
+Termux, or an institutional server; whichever is used, its microarchitecture and
+core topology are recorded. The IRIW test requires at least four cores and is
+reported only where the platform supports it.
+
+\subsection{Measurements Reported}
+
+\begin{enumerate}
+\item \textbf{Observation frequency} per test per platform, over $10^7$
+  iterations, with ten repetitions reported as mean and standard deviation.
+  Reporting frequency rather than a binary observed/not-observed classification is
+  a deliberate choice: the gap between what an architecture permits and what a
+  particular implementation exhibits is one of the paper's subjects, and it is
+  invisible in a binary encoding.
+\item \textbf{The effect of fences.} Each test is re-run with the appropriate
+  fence inserted. The expected result is that every observation frequency falls to
+  zero; any test for which it does not indicates either a misplaced fence or a
+  misunderstanding of the fence's semantics, and would require investigation.
+\item \textbf{Fence cost in cycles}, measured by timing a tight loop with and
+  without the barrier instruction using \code{rdtsc} on x86 and the cycle counter
+  on AArch64, with frequency scaling disabled.
+\item \textbf{Sensitivity} to thread placement and to inserted delay between the
+  store and the load, establishing the width of the vulnerability window.
+\end{enumerate}
+
+\subsection{Threats to Validity}
+
+Litmus testing establishes that a behaviour \emph{can} occur; it can never
+establish that one cannot.
+A zero observation count is consistent with the
+behaviour being architecturally forbidden, with it being permitted but not
+exhibited by this implementation, and with the harness suppressing it.
+This
+paper therefore reports observations as lower bounds and pairs every measurement
+with the corresponding architectural statement from the vendor manual. Where the
+two disagree --- permitted but never observed --- the discrepancy is reported as a
+finding rather than resolved by assumption.
+
+\section{Instrument 2: The Simulator}
+\label{sec:sim-method}
+
+\subsection{Rationale}
+
+Hardware answers what x86 and ARM do.
+It cannot answer what SC would cost, because
+no SC hardware exists to measure.
+That question requires a machine in which the
+memory model is a parameter.
+
+\subsection{Architecture}
+
+The simulator models $N$ cores, each with a private L1, connected by a directory
+protocol over an interconnect of configurable latency.
+Its distinguishing feature
+is that the ordering policy is an interchangeable component: a single interface
+decides, for each memory operation, whether it may issue given the operations
+still outstanding.
+Four implementations of that interface are provided --- SC-naive,
+SC-speculative, TSO and Weak --- and \emph{no other part of the simulator differs
+between configurations}.
+The memory model is thereby the only independent variable.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Simulator configuration parameters and their default values.}
+\label{tab:simconfig}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Parameter} & \textbf{Default} & \textbf{Swept over} \\
+\midrule
+Cores                & 8            & 2, 4, 8, 16, 32 \\
+Store buffer entries & 32           & 8, 16, 32, 64 \\
+Load queue entries   & 32           & 16, 32, 64 \\
+L1 size / assoc.     & 32\,kB / 8   & fixed \\
+Coherence            & MESI directory & fixed \\
+Interconnect latency & 20 cycles    & 10, 20, 40 \\
+Memory latency       & 200 cycles   & fixed \\
+Memory model         & ---          & SC-naive, SC-spec, TSO, Weak \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Speculative SC}
+
+The SC-speculative policy is the one whose viability the paper tests.
+Its
+operation is as follows.
+
+\begin{enumerate}
+\item A load is permitted to issue even where SC would require it to wait, and its
+  address is retained in the load queue marked speculative.
+\item Incoming coherence invalidations are matched against speculative load queue
+  entries.
+\item A match indicates that a remote store to a speculatively read line occurred
+  within the window, so the speculation was potentially observable.
+The load and
+  all younger instructions are squashed and re-executed.
+\item Absent a match, the load retires and the relaxation is unobservable.
+\end{enumerate}
+
+Both required mechanisms already exist in the modelled core: coherence
+invalidations are generated by the protocol regardless, and the squash path is the
+branch-misprediction recovery path.
+The added hardware is an address comparator
+against the load queue.
+
+\subsection{Workloads}
+
+Standard benchmark suites are unsuitable as the primary workload.
+SPEC and PARSEC
+are dominated by cache and branch behaviour; the memory model contributes little
+and the effect under study would be buried in noise.
+Workloads are therefore
+selected for communication density.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Simulated workloads.}
+\label{tab:workloads}
+\begin{tabular}{@{}llp{6.4cm}@{}}
+\toprule
+\textbf{Tier} & \textbf{Workload} & \textbf{Stresses} \\
+\midrule
+Sync    & Spinlock counter        & Fence cost on acquire and release under contention \\
+Sync    & Dekker mutual exclusion & Store~$\to$~load ordering directly \\
+Sync    & SPSC ring buffer        & Acquire/release pairs in steady state \\
+Sync    & Treiber stack           & Atomic RMW and ordering around it \\
+Sync    & Sense-reversing barrier & All-core synchronisation \\
+Kernel  & Parallel reduction      & Mostly-private access with periodic combining \\
+Kernel  & Shared-frontier BFS     & Irregular sharing \\
+Kernel  & Atomic histogram        & Contended atomic updates \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The two tiers serve different purposes.
+The synchronisation microbenchmarks
+isolate the effect; the kernels test whether it survives into code that performs
+useful work.
+It is anticipated that the gap between models narrows substantially
+in the second tier, and that outcome, if observed, is a result and not a
+disappointment.
+
+\subsection{Metrics}
+
+Per run, the simulator emits: total cycles; IPC; stall cycles decomposed by cause
+(store buffer full, fence drain, cache miss, coherence wait); squash count;
+coherence messages; mean store buffer occupancy.
+
+The headline metric is execution time normalised to Weak.
+The explanatory metric
+is the decomposition of stall cycles: the hypothesis under test predicts that
+SC-naive's ordering stalls are largely \emph{converted} into squash cycles under
+SC-speculative, and that squash cycles are fewer because they are incurred only on
+genuine conflicts.
+A result without this decomposition would establish a
+correlation without a mechanism.
+
+\subsection{Experimental Protocol}
+
+Each configuration is run once as warm-up and discarded, then ten times with
+distinct seeds. Results are reported as mean and standard deviation with error
+bars on all figures.
+The full sweep is $8$ workloads $\times$ $4$ models $\times$
+$5$ core counts $\times$ $10$ repetitions, or $1600$ runs, driven by a single
+script and emitting one CSV row per run.
+All figures are generated from those CSVs
+by scripts under version control, so that the figures are reproducible from the
+data by one command.
+
+\paragraph{A methodological commitment.} Every number in the results chapters
+originates from this simulator under the configuration recorded alongside it.
+No
+comparison is made against published figures obtained on other simulators or other
+hardware, since differing microarchitectural assumptions would render such
+comparisons meaningless.
+The value of the instrument lies entirely in its being a
+controlled experiment.
+
+\section{Instrument 3: Verification}
+\label{sec:verif-method}
+
+A performance comparison between memory models is worthless if the implementations
+do not in fact implement those models.
+The third instrument establishes that they
+do.
+
+For each litmus test and each model, two sets of final states are computed:
+
+\begin{enumerate}
+\item The \emph{permitted} set, by enumerating all candidate executions and
+  applying the acyclicity criterion of \cref{def:permitted} directly.
+\item The \emph{produced} set, by exhaustively enumerating all interleavings the
+  simulator admits for that test under that ordering policy.
+\end{enumerate}
+
+The two sets must be equal. A produced state outside the permitted set is a bug in
+the ordering policy.
+A permitted state never produced indicates that the
+implementation is stricter than the model requires --- not a correctness error, but
+a fact that must be reported, since it would bias the performance comparison in
+that model's favour.
+
+Litmus tests are small enough that exhaustive enumeration is tractable, and the
+checker is a distinct piece of software from the timing simulator, so that a
+common bug is unlikely to mask itself in both.
+
+\section{Tooling and Reproducibility}
+
+The simulator is written in C++ and emits CSV. Figures are produced in Python with
+pandas and matplotlib, one script per figure, exported as vector PDF. Litmus tests
+are C11 with pthreads.
+The paper is written in \LaTeX{} with all figures in TikZ,
+and references are maintained in Zotero and exported to BibTeX. Random seeds are
+fixed, a single \code{run\_all.sh} reproduces every result, and the repository is
+cited in the final version.
+
+\section{Anticipated Results and Falsifiability}
+
+The hypothesis under test is that speculative sequential consistency is
+substantially cheaper than naive sequential consistency, and close to weak
+ordering, on a core that already speculates.
+Concretely, the paper predicts:
+
+\begin{itemize}
+\item SC-naive between $1.5\times$ and $2\times$ the execution time of Weak on the
+  synchronisation tier;
+\item SC-speculative within $1.05\times$ to $1.15\times$ of Weak on the same tier;
+\item the advantage of SC-speculative narrowing as core count rises, driven by
+  squash rate.
+\end{itemize}
+
+Stating these in advance makes the study falsifiable.
+Should SC-speculative prove
+expensive at all core counts, or should its cost prove insensitive to squash rate,
+the hypothesis is refuted and the historical verdict is vindicated --- which would
+be a result of equal interest and is reported as such.

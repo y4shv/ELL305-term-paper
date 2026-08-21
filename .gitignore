@@ -1,0 +1,51 @@
+# ---- LaTeX build artifacts -------------------------------------------
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.lof
+*.lot
+*.out
+*.toc
+*.synctex.gz
+*.synctex(busy)
+*.nav
+*.snm
+*.vrb
+*.xdv
+*.run.xml
+*.bcf
+
+# ---- The built PDF ---------------------------------------------------
+# Deliberately ignored. A PDF is a binary file: git cannot merge two
+# people's versions, so committing it produces a conflict on almost every
+# pull. Build it locally instead.
+#
+# For the four course submissions, attach the PDF to a tagged GitHub
+# Release (v0.1, v0.2, v0.3, v1.0) rather than committing it. See
+# COLLABORATING.md.
+main.pdf
+
+# ---- Editor and OS noise ---------------------------------------------
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# ---- Simulator and experiment artifacts (from v0.2 onward) -----------
+sim/build/
+sim/*.o
+litmus/*.out
+litmus/bin/
+__pycache__/
+*.pyc
+.venv/
+
+# ---- Generated data and figures --------------------------------------
+# Raw CSVs ARE committed -- they are the experimental record.
+# Figures are NOT: they regenerate from the CSVs by running the scripts.
+figures/generated/

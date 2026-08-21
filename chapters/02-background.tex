@@ -1,0 +1,253 @@
+\chapter{Background: Why Memory Operations Are Reordered}
+\label{ch:background}
+
+This chapter establishes the microarchitectural facts on which the rest of the
+paper depends.
+None of the mechanisms described here was introduced in order to
+weaken the memory model; each was introduced to solve a performance problem, and
+the weakening of ordering guarantees is a side effect.
+That the side effect is
+unavoidable --- that the speed and the reordering are two descriptions of the same
+property --- is the central observation of the chapter.
+
+\section{The Memory Wall}
+\label{sec:memwall}
+
+A processor core executes arithmetic at a rate of one or more operations per
+clock cycle.
+Access to main memory takes on the order of $200$ cycles.
+Sarangi
+develops this asymmetry in \S11.1.1 of the prescribed text
+\cite{sarangi2025basic}; the consequence is that a core that waited for every
+memory access would spend the overwhelming majority of its cycles idle.
+
+Two structures address this, and they address different halves of the problem.
+The \emph{cache} shortens read latency by keeping copies of recently accessed
+lines close to the core.
+The \emph{store buffer} eliminates write latency by
+allowing the core to retire a store without waiting for it to reach memory at all.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=9mm]
+  \node[core] (c)                       {Core\\\scriptsize registers, $\sim$1 cycle};
+  \node[buf]  (sb) [right=22mm of c]    {Store buffer\\\scriptsize pending writes};
+  \node[mem]  (l1) [below=12mm of c]    {L1 cache\\\scriptsize $\sim$4 cycles};
+  \node[mem]  (l2) [below=of l1]        {L2 / L3\\\scriptsize $\sim$12--40 cycles};
+  \node[mem]  (mm) [below=of l2]        {Main memory\\\scriptsize $\sim$200 cycles};
+
+  \draw[flow] (c) -- node[lbl,left]{loads} (l1);
+  \draw[flow] (c) -- node[lbl,above]{stores} (sb);
+  \draw[slow] (sb) |- node[lbl,pos=0.75,above]{drained later} (l1.east);
+  \draw[flow] (l1) -- (l2);
+  \draw[flow] (l2) -- (mm);
+  \draw[flow] (sb.north) .. controls +(0,8mm) and +(0,8mm) .. (c.north)
+        node[lbl,pos=0.5,above]{forwarding};
+\end{tikzpicture}
+\caption{The memory path of a single core. Loads traverse the cache hierarchy;
+stores are placed in the store buffer and drained asynchronously. The forwarding
+path returns a pending store's value to a subsequent load from the same core.}
+\label{fig:hierarchy}
+\end{figure}
+
+\section{Caches}
+\label{sec:caches}
+
+Caches exploit temporal and spatial locality (\S11.1.3--\S11.1.6 of the text) to
+serve most accesses without a memory transaction.
+For the purposes of this paper
+three properties matter.
+
+\paragraph{Caches are private.} In a multicore processor, the L1 and typically
+the L2 cache belong to a single core.
+A line may therefore be resident in several
+caches simultaneously, and the copies may disagree unless something is done about
+it.
+That something is coherence, and it is the subject of Chapter~3.
+
+\paragraph{Cache misses are non-blocking.} A modern L1 permits multiple
+outstanding misses, tracked in miss-status holding registers.
+Consequently two
+loads issued in program order may complete in either order, depending on which
+one hits.
+
+\paragraph{Cache line granularity.} Coherence operates on lines, typically 64
+bytes, not on individual words.
+Two variables that are logically unrelated but
+share a line will interact through the coherence protocol.
+This phenomenon,
+false sharing, will matter in Chapter~6 when litmus test variables are laid out.
+
+\section{The Store Buffer}
+\label{sec:storebuffer}
+
+The store buffer is the mechanism most directly responsible for the behaviour
+described in \S\ref{sec:motivating}, and it deserves careful statement.
+
+When a core executes a store, the value to be written is already in hand.
+Unlike
+a load, the store produces no result that subsequent instructions require.
+There
+is therefore no data dependence forcing the core to wait for the store to
+complete.
+The store buffer exploits this: the store is placed in a small FIFO
+queue --- typically 40 to 60 entries --- and the core proceeds immediately.
+A
+separate mechanism drains the queue into the cache in the background.
+
+The cost avoided is larger than it first appears.
+Writing to a cache line
+requires that the line be held in a state permitting modification.
+If it is not,
+the core must first issue a coherence request for exclusive ownership and wait for
+every other core holding a copy to relinquish it.
+On a large multicore that
+round-trip may take hundreds of cycles.
+Without a store buffer, the core stalls
+for all of it.
+
+\subsection{Store-to-Load Forwarding}
+
+If a core stores to an address and subsequently loads from the same address, the
+correct value may still be sitting in the store buffer rather than in the cache.
+The load therefore checks the store buffer before the cache, and if a matching
+pending store is found the value is returned directly.
+This is
+\emph{store-to-load forwarding}.
+
+Forwarding is why single-threaded programs are unaffected by any of this.
+A core
+always observes its own writes in program order, whatever the rest of the system
+sees.
+The uniprocessor programming model is preserved exactly; only the
+inter-core view is altered.
+
+\subsection{The Unavoidable Consequence}
+
+We can now state the point precisely.
+
+\begin{quote}
+The store buffer is fast \emph{because} a store held in it is not yet visible to
+other cores.
+The invisibility is not an implementation defect that better
+engineering could remove; it is the same fact as the performance benefit, viewed
+from the other side.
+Any mechanism that made pending stores immediately visible
+would, by definition, require the core to wait for them, which is the stall the
+store buffer exists to avoid.
+\end{quote}
+
+\noindent Figure~\ref{fig:sbtest} traces Listing~\ref{lst:sb} through this
+structure and shows how the outcome $\texttt{r0} = \texttt{r1} = 0$ arises without
+any component behaving incorrectly.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+  \node[core] (c0) at (0,3)      {Core 0\\\scriptsize \code{x=1; r0=y;}};
+  \node[core] (c1) at (8,3)      {Core 1\\\scriptsize \code{y=1; r1=x;}};
+  \node[buf]  (b0) at (0,1.4)    {Store buffer\\\scriptsize holds \code{x=1}};
+  \node[buf]  (b1) at (8,1.4)    {Store buffer\\\scriptsize holds \code{y=1}};
+  \node[mem]  (m)  at (4,-0.4)   {Shared memory\\\scriptsize \code{x==0}, \code{y==0}};
+
+  \draw[flow] (c0) -- (b0);
+  \draw[flow] (c1) -- (b1);
+  \draw[slow] (b0) -- node[lbl,left,pos=0.4]{not yet\\drained} (m.west);
+  \draw[slow] (b1) -- node[lbl,right,pos=0.4]{not yet\\drained} (m.east);
+
+  \draw[flow] (m.west)  .. controls +(-3.4,0) and +(-1.6,-1.4) .. (c0.south west)
+        node[lbl,pos=0.45,left]{reads 0};
+  \draw[flow] (m.east)  .. controls +(3.4,0) and +(1.6,-1.4) .. (c1.south east)
+        node[lbl,pos=0.45,right]{reads 0};
+\end{tikzpicture}
+\caption{Execution of Listing~\ref{lst:sb}. Each store is buffered locally while
+the corresponding load is served from shared memory, which still holds the
+initial values. Both loads return zero. No component has malfunctioned.}
+\label{fig:sbtest}
+\end{figure}
+
+\section{Out-of-Order Execution}
+\label{sec:ooo}
+
+Store buffering relaxes the ordering of a store with respect to \emph{later}
+operations.
+Out-of-order execution, treated in \S10.11.4 of the prescribed text,
+relaxes considerably more.
+
+An out-of-order core fetches instructions in program order, issues them for
+execution as soon as their operands are available regardless of order, and retires
+them in program order so that exceptions remain precise.
+The load-store queue
+tracks memory operations, resolves addresses as they become known, and permits
+loads to be issued speculatively ahead of older stores whose addresses are not yet
+computed.
+
+Three consequences follow for the memory model:
+
+\begin{enumerate}
+\item \textbf{Loads may execute out of order with respect to one another}, since a
+  load that hits in the cache completes before an older load that misses.
+\item \textbf{Loads may execute ahead of older stores.} This is a deliberate
+  optimisation; a store's address may not be known for many cycles, and blocking
+  all subsequent loads until it is would be very costly.
+\item \textbf{A squash mechanism already exists.} When a branch is mispredicted,
+  the core discards all speculative state after the branch and restarts.
+This
+  machinery is general and, as Chapter~4 and the discussion of speculative SC will
+  show, can be repurposed to recover from ordering violations.
+\end{enumerate}
+
+The third point is the one on which this paper's argument turns.
+The expensive
+component of an optimistic implementation of sequential consistency --- the
+ability to undo work --- is not an addition to a modern core.
+It is already there.
+
+\section{The Compiler}
+\label{sec:compiler}
+
+Hardware is not the only source of reordering.
+An optimising compiler reasons
+about one thread at a time and freely reorders, coalesces, hoists and eliminates
+memory accesses that no single-threaded observer could distinguish.
+Register
+allocation alone can remove a shared-variable read entirely, converting a spin
+loop into an infinite loop.
+
+The relevance to this paper is twofold.
+First, litmus tests must be written so
+that the compiler does not optimise away the very accesses being measured; the
+techniques for this are set out in Chapter~6.
+Second, any claim about the cost of
+sequential consistency must account for the compiler, since hardware SC without
+compiler SC provides no guarantee to the programmer at all.
+Marino et al.\ address
+precisely this \cite{marino2011sc}, and Chapter~11 returns to it.
+
+\section{Summary}
+\label{sec:bg-summary}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Mechanisms that reorder memory operations, and their motivation.}
+\label{tab:mechanisms}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Mechanism} & \textbf{Introduced to} & \textbf{Reordering permitted} \\
+\midrule
+Store buffer            & hide store latency        & store $\rightarrow$ later load \\
+Non-blocking cache      & overlap misses            & load $\rightarrow$ load \\
+Out-of-order issue      & extract parallelism       & load $\rightarrow$ load, load $\rightarrow$ store \\
+Write coalescing        & reduce bus traffic        & store $\rightarrow$ store \\
+Compiler optimisation   & reduce instruction count  & all of the above \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Every entry in Table~\ref{tab:mechanisms} is a performance mechanism whose
+ordering consequence is incidental. The architectural question --- which of these
+reorderings a machine will admit to performing, and which it will hide from the
+programmer --- is the subject of Chapter~4.
+First, however, Chapter~3 must dispose
+of the mechanism that is commonly, and mistakenly, expected to solve the problem.

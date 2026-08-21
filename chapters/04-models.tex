@@ -1,0 +1,401 @@
+\chapter{The Design Space of Memory Consistency Models}
+\label{ch:models}
+
+This chapter is the formal core of the paper.
+It introduces a single vocabulary
+of ordering relations, expresses five consistency models as successively weaker
+constraints within it, and establishes the containment hierarchy between them.
+The formalism follows the execution-witness and access-graph treatment of
+Sarangi \cite[Ch.~9]{sarangi2023nextgen}, with terminology reconciled to that of
+Nagarajan et al.\ \cite{nagarajan2020primer} where the two differ.
+
+\section{Executions and Relations}
+\label{sec:relations}
+
+\subsection{Memory Events}
+
+An \emph{execution} of a multithreaded program is a set $E$ of memory events.
+Each event $e \in E$ is a load $\Ld{a}$ or a store $\St{a}$ to some address $a$,
+issued by an identified core, and carrying a value.
+Non-memory instructions are
+irrelevant to the model and are omitted.
+
+\subsection{The Four Primitive Relations}
+
+\begin{description}
+\item[Program order, $\po$.] A per-core total order. $e_1 \po e_2$ if both are
+  issued by the same core and $e_1$ precedes $e_2$ in that core's instruction
+  stream.
+This relation is given by the program and is not subject to negotiation.
+
+\item[Reads-from, $\rf$.] $\St{a} \rf \Ld{a}$ if the load returns the value
+  written by that store.
+Every load reads from exactly one store (taking the
+  initialisation of memory as a store), so $\rf$ is a function on loads.
+
+\item[Coherence order, $\co$.] For each address $a$, a total order on all stores
+  to $a$. This is exactly the order guaranteed by the coherence protocol of
+  Chapter~3, and its existence is the formal content of the SWMR invariant.
+
+\item[From-read, $\fr$.] A derived relation. $\Ld{a} \fr \St{a}$ if the load reads
+  from some store that precedes this store in $\co$; informally, the load happened
+  before this store overwrote the value it observed. Formally,
+  \[
+    \fr \;=\; \rf^{-1} \,;\, \co
+  \]
+  where $;$ denotes relational composition.
+\end{description}
+
+\subsection{The Central Definition}
+
+Every model in this chapter has the same shape.
+Each defines a subset of program
+order, called \emph{preserved program order} and written $\ppo$, consisting of
+those program-order pairs the model promises to maintain globally.
+An execution
+is permitted by the model exactly when the combined relation is acyclic.
+
+\begin{definition}[Model-permitted execution]
+\label{def:permitted}
+Let $M$ be a consistency model with preserved program order $\ppo_M$. An
+execution $E$ is permitted by $M$ if and only if the relation
+\[
+  \ppo_M \;\cup\; \rf \;\cup\; \co \;\cup\; \fr
+\]
+is acyclic over $E$.
+\end{definition}
+
+A cycle in this relation is a proof that no total order of events consistent with
+the model can produce the execution.
+The models therefore differ in exactly one
+respect --- how much of $\po$ survives into $\ppo$ --- and the entire design space
+can be presented as a single table.
+That table is \cref{tab:models}.
+
+\section{Litmus Tests}
+\label{sec:litmus-formal}
+
+A \emph{litmus test} is a minimal multithreaded program, together with a
+distinguished final state, used to distinguish models.
+If a model permits the
+state, the hardware may produce it; if not, it may not.
+
+\subsection{SB: Store Buffering}
+
+Listing~\ref{lst:sb} of Chapter~1, in litmus form:
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Core 0} & \textbf{Core 1} \\
+\midrule
+\code{St(x,1)} & \code{St(y,1)} \\
+\code{Ld(y)} $\to$ \code{r0} & \code{Ld(x)} $\to$ \code{r1} \\
+\bottomrule
+\end{tabular}
+\quad
+\emph{Target:} $\texttt{r0}=0 \wedge \texttt{r1}=0$
+\end{center}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    ev/.style={draw, rounded corners=2pt, minimum width=20mm, minimum height=7mm,
+               font=\ttfamily\small, fill=black!4},
+    rel/.style={-{Latex[length=2mm]}, thick},
+    rl/.style={font=\scriptsize\itshape}]
+
+  \node[ev] (a) at (0,2)   {St(x,1)};
+  \node[ev] (b) at (0,0)   {Ld(y)=0};
+  \node[ev] (c) at (5,2)   {St(y,1)};
+  \node[ev] (d) at (5,0)   {Ld(x)=0};
+
+  \draw[rel] (a) -- node[rl,left]{po} (b);
+  \draw[rel] (c) -- node[rl,right]{po} (d);
+  \draw[rel] (b) -- node[rl,above,pos=0.5]{fr} (c);
+  \draw[rel] (d) -- node[rl,below,pos=0.5]{fr} (a);
+\end{tikzpicture}
+\caption{Access graph for the SB litmus test with the target outcome. The four
+edges form a cycle, so the outcome is forbidden by any model that preserves
+store~$\to$~load program order. TSO does not preserve it, and the cycle is
+therefore not a cycle in $\ppo_{\mathrm{TSO}} \cup \rf \cup \co \cup \fr$.}
+\label{fig:sb-graph}
+\end{figure}
+
+Each load reads the initial value, so each load is $\fr$-before the other core's
+store.
+Together with the two $\po$ edges this closes a cycle.
+Under SC, where
+$\ppo = \po$, the cycle is present and the outcome is forbidden.
+Under TSO, where
+store~$\to$~load pairs are dropped from $\ppo$, both $\po$ edges vanish and no
+cycle remains: the outcome is permitted.
+
+\subsection{MP: Message Passing}
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Core 0} & \textbf{Core 1} \\
+\midrule
+\code{St(data,1)} & \code{Ld(flag)} $\to$ \code{r0} \\
+\code{St(flag,1)} & \code{Ld(data)} $\to$ \code{r1} \\
+\bottomrule
+\end{tabular}
+\quad
+\emph{Target:} $\texttt{r0}=1 \wedge \texttt{r1}=0$
+\end{center}
+
+This is the idiom underlying every publication protocol: write the payload, then
+set a flag; on the reader, test the flag, then read the payload.
+The target
+outcome --- flag observed set, payload observed stale --- requires either that
+Core~0's two stores were reordered (a store~$\to$~store relaxation) or that
+Core~1's two loads were reordered (a load~$\to$~load relaxation).
+TSO permits
+neither, and MP is accordingly forbidden on x86.
+Weak models permit both, and MP
+is observable on ARM.
+
+\subsection{LB, IRIW, WRC and the Coherence Tests}
+
+Four further tests complete the discriminating set used in this paper.
+
+\begin{description}
+\item[LB (Load Buffering).] Each core loads one variable and stores the other;
+  the target has each load returning the other core's store.
+Requires
+  load~$\to$~store reordering.
+Forbidden under TSO, permitted under ARM and POWER
+  in principle, though rarely observed.
+\item[IRIW (Independent Reads of Independent Writes).] Two writer cores and two
+  reader cores; the target has the readers disagreeing about the order of the two
+  writes.
+Distinguishes \emph{multicopy atomic} models, in which a store becomes
+  visible to all cores simultaneously, from non-multicopy-atomic ones.
+POWER and
+  ARMv7 permit it; ARMv8, revised in 2018, does not.
+\item[WRC (Write-to-Read Causality).] Three cores in a causal chain; tests
+  whether causality is transitive.
+\item[CoRR, CoWR, CoRW.] Single-address tests that check coherence itself rather
+  than consistency.
+Every model forbids their target outcomes; they serve as
+  controls, and any hardware or simulator producing them is defective.
+\end{description}
+
+\section{The Models}
+\label{sec:the-models}
+
+\subsection{Sequential Consistency}
+
+\begin{definition}[Sequential consistency, after Lamport \cite{lamport1979multiprocessor}]
+A multiprocessor is sequentially consistent if the result of any execution is the
+same as if the operations of all processors were executed in some sequential
+order, and the operations of each individual processor appear in that sequence in
+the order specified by its program.
+\end{definition}
+
+In the framework of \cref{def:permitted}, $\ppo_{\mathrm{SC}} = \po$: all four
+program-order pairs are preserved. SC is the model that validates the informal
+reasoning of \S\ref{sec:motivating}, and it is the only model in this chapter
+that does.
+
+\subsection{Total Store Order}
+
+TSO relaxes exactly one pair: a store may be reordered with a \emph{later} load to
+a different address.
+This corresponds precisely to a FIFO store buffer with
+store-to-load forwarding, and nothing else.
+It is the model of SPARC TSO and,
+with minor differences of specification, of x86.
+
+Two further properties characterise TSO. The store buffer is FIFO, so
+store~$\to$~store order is preserved. And TSO is \emph{multicopy atomic}: a store
+that leaves a core's buffer becomes visible to all other cores at once, which is
+why IRIW is forbidden.
+
+\subsection{Partial Store Order}
+
+PSO additionally relaxes store~$\to$~store, modelling a non-FIFO store buffer that
+may drain entries out of order or coalesce them.
+It was defined by SPARC and is
+of limited practical importance today, but it is a necessary intermediate point in
+the hierarchy and it isolates the store~$\to$~store relaxation for study.
+
+\subsection{Weak Ordering and RMO}
+
+Weak ordering, introduced by Dubois, Scheurich and Briggs
+\cite{dubois1986memory}, abandons the attempt to preserve any program order
+between ordinary accesses.
+It instead divides accesses into \emph{data} and
+\emph{synchronisation} operations and guarantees ordering only at synchronisation
+points.
+SPARC RMO, Alpha, POWER, ARMv7 and RISC-V's RVWMO are all of this family,
+differing in detail --- notably in whether they are multicopy atomic and in which
+dependencies are respected.
+
+Three dependencies survive in essentially every weak model, because violating them
+would break single-threaded semantics:
+
+\begin{description}
+\item[Address dependency.] A load whose result computes the address of a later
+  access.
+\item[Data dependency.] A store whose value is computed from an earlier load.
+\item[Control dependency.] A branch conditional on a load. Notably, control
+  dependencies order later \emph{stores} but not later \emph{loads}, since the
+  latter may be executed speculatively past the branch --- a subtlety that has
+  caused documented bugs in production code.
+\end{description}
+
+\subsection{Release Consistency}
+
+Release consistency, due to Gharachorloo et al.\ \cite{gharachorloo1990memory},
+refines weak ordering by distinguishing two kinds of synchronisation:
+
+\begin{itemize}
+\item An \emph{acquire} orders itself before all subsequent accesses.
+\item A \emph{release} orders all preceding accesses before itself.
+\end{itemize}
+
+Neither constrains operations in the other direction, so the fences are strictly
+cheaper than a full barrier.
+This is the model exposed by C++11's
+\code{memory\_order\_acquire} and \code{memory\_order\_release} and implemented
+directly in ARMv8's \code{LDAR} and \code{STLR} instructions.
+
+\subsection{Summary Table}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Program-order pairs preserved by each model. A tick indicates the pair is
+in $\ppo$; a cross indicates it may be reordered.}
+\label{tab:models}
+\begin{tabular}{@{}lcccccl@{}}
+\toprule
+\textbf{Model} & \textbf{S$\to$L} & \textbf{S$\to$S} & \textbf{L$\to$L} &
+\textbf{L$\to$S} & \textbf{MCA} & \textbf{Deployed in} \\
+\midrule
+SC        & \checkmark & \checkmark & \checkmark & \checkmark & \checkmark & --- \\
+TSO       & $\times$   & \checkmark & \checkmark & \checkmark & \checkmark & x86, SPARC \\
+PSO       & $\times$   & $\times$   & \checkmark & \checkmark & \checkmark & SPARC \\
+Weak/RMO  & $\times$   & $\times$   & $\times$   & $\times$   & varies     & ARM, POWER, RISC-V \\
+RC        & $\times$   & $\times$   & $\times$   & $\times$   & varies     & C++11, ARMv8 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent MCA denotes multicopy atomicity. ARMv8 became multicopy atomic in its
+2018 revision; POWER and ARMv7 are not.
+
+\section{The Containment Hierarchy}
+\label{sec:containment}
+
+Let $\mathcal{X}(M)$ denote the set of executions permitted by model $M$.
+
+\begin{theorem}[Containment]
+\label{thm:containment}
+$\mathcal{X}(\mathrm{SC}) \subsetneq \mathcal{X}(\mathrm{TSO}) \subsetneq
+ \mathcal{X}(\mathrm{PSO}) \subsetneq \mathcal{X}(\mathrm{Weak})$.
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+\emph{Containment.} By construction $\ppo_{\mathrm{Weak}} \subseteq
+\ppo_{\mathrm{PSO}} \subseteq \ppo_{\mathrm{TSO}} \subseteq \ppo_{\mathrm{SC}}$,
+since each model is obtained from its predecessor by deleting pairs.
+If a relation
+is acyclic then any subrelation of it is acyclic; hence a superset of $\ppo$
+generates a superset of the cycles, and so a subset of the permitted executions.
+
+\emph{Strictness.} Each inclusion is witnessed by a litmus test permitted by the
+weaker model and forbidden by the stronger: SB separates SC from TSO; MP with the
+stores reordered separates TSO from PSO; MP with the loads reordered separates PSO
+from Weak.
+\Cref{fig:sb-graph} gives the argument in the first case; the others
+are structurally identical and are given in full in Appendix~B.
+\end{proof}
+
+The hierarchy has a practical reading.
+A program correct under a weak model is
+correct under every stronger one, so code written for ARM runs correctly on x86.
+The converse fails, and this asymmetry is the source of a well-known class of
+porting defect.
+
+\section{Fences}
+\label{sec:fences}
+
+A fence restores ordering that the model does not provide by default.
+Its
+semantics are stated as an addition to $\ppo$: a full fence $F$ contributes
+$\{(e_1,e_2) : e_1 \po F \po e_2\}$.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Ordering instructions in deployed instruction sets.}
+\label{tab:fences}
+\begin{tabular}{@{}llp{6.3cm}@{}}
+\toprule
+\textbf{ISA} & \textbf{Instruction} & \textbf{Effect} \\
+\midrule
+x86    & \code{MFENCE}         & Full barrier; drains the store buffer. \\
+x86    & \code{LOCK} prefix    & Atomic RMW; carries full-barrier semantics. \\
+ARMv8  & \code{DMB ISH}        & Full data memory barrier, inner shareable. \\
+ARMv8  & \code{LDAR} / \code{STLR} & Load-acquire, store-release. \\
+POWER  & \code{sync} / \code{lwsync} & Heavyweight and lightweight sync. \\
+RISC-V & \code{FENCE} \emph{pred,succ} & Bit-encoded predecessor/successor sets. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The RISC-V encoding is worth noting: rather than offering a fixed menu, it exposes
+four predecessor and four successor bits, so that the programmer requests exactly
+the orderings needed. This is the most explicit acknowledgement in any deployed
+ISA that fence strength is a continuum rather than a binary.
+
+Fences are not free.
+Restoring an ordering means reintroducing the stall the
+relaxation was introduced to avoid; a full barrier on x86 costs on the order of
+$50$--$100$ cycles.
+Quantifying this cost on real hardware is one of the
+measurements specified in Chapter~6.
+
+\section{Data-Race-Free Programming}
+\label{sec:drf}
+
+The models above are hardware contracts.
+Programmers work in languages, and the
+bridge between the two is the data-race-freedom theorem of Adve and Hill
+\cite{adve1990weak}.
+
+\begin{definition}[Data race]
+Two accesses conflict if they target the same address and at least one is a store.
+An execution has a data race if two conflicting accesses from different cores are
+unordered by synchronisation.
+A program is data-race-free (DRF) if no sequentially
+consistent execution of it contains a race.
+\end{definition}
+
+\begin{theorem}[DRF, informally]
+A DRF program executing on a weakly ordered machine that respects
+synchronisation operations produces only sequentially consistent results.
+\end{theorem}
+
+This is the settlement on which modern practice rests, and it is the intellectual
+foundation of both the Java Memory Model \cite{manson2005java} and the C++11
+model \cite{boehm2008foundations}.
+Its bargain is explicit: \emph{annotate your
+synchronisation correctly and you may reason sequentially}.
+Its weakness is
+equally explicit --- the guarantee is void for racy programs, and racy programs
+are common.
+Chapter~11 returns to whether this bargain was a good one.
+
+\section{Summary}
+
+Five models, one formalism, one table.
+The models differ only in how much of
+program order they preserve, and they form a strict hierarchy.
+What the table does
+not show is cost: it says what each model forbids, not what forbidding it is worth.
+Chapter~5 recounts how the field came to settle where it did, and Chapter~6 sets
+out how this paper proposes to measure whether that settlement was correct.

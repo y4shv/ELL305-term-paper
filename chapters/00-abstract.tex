@@ -1,0 +1,53 @@
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+A shared--memory multiprocessor must answer a question that a uniprocessor never
+has to face: when one core writes to memory, when --- and in what order relative
+to its other writes --- must the other cores see that write?
+The answer a machine
+gives is called its \emph{memory consistency model}.
+It is not an implementation
+detail but an architectural contract, as binding as the instruction set itself,
+and it is the reason a multithreaded C program that is provably correct on paper
+can fail on real silicon.
+
+The obvious contract is \emph{sequential consistency} (SC), formalised by Lamport
+in 1979: the machine must behave as though the memory operations of all cores were
+interleaved into a single total order that respects each core's program order.
+SC matches programmer intuition exactly.
+By the early 1990s, however, the
+architecture community had rejected it for hardware implementation on performance
+grounds, and every commercially significant instruction set since --- SPARC, Alpha,
+POWER, ARM, and RISC-V --- has published a weaker contract, exposing reordering to
+software and supplying fence instructions with which programmers are expected to
+suppress it selectively.
+
+That decision was reached on machines with in-order, non-speculative pipelines,
+small bus-snooped caches, and core counts in the single digits.
+Every one of those
+premises has since been invalidated. A modern out-of-order core already contains
+both mechanisms that a strong model needs: a coherence protocol that announces
+remote writes, and a squash-and-restart path built for branch misprediction
+recovery.
+A line of work beginning with Gniady et al.\ has argued that, given
+these, SC can be enforced speculatively at a small fraction of its assumed cost.
+And yet no shipping processor implements it.
+
+This paper examines that gap. It develops a single formal framework in which SC,
+TSO, PSO, weak ordering and release consistency appear as successively weaker
+constraints on one set of ordering relations; it traces the historical argument
+from 1979 to the ratification of RVWMO; it establishes, by direct measurement on
+x86 and ARM hardware, which relaxations are observable in practice as opposed to
+merely permitted; and it quantifies, in a configurable multicore simulator, the
+cost of enforcing each model with and without speculative load execution.
+The
+governing question is whether the performance objection to sequential consistency
+still holds on a machine that already speculates --- and, if it does not, what
+else explains the industry's continued preference for weak ordering.
+
+\vspace{1em}
+\noindent\textbf{Note on this version.} This is draft v0.1. It comprises the
+formal, historical and methodological portions of the paper (Chapters~1--6).
+The experimental and simulation results announced in Chapter~6 are the subject of
+versions v0.2 and v0.3; Chapter~6 states the design of those experiments in
+sufficient detail to be evaluated in advance of the data.

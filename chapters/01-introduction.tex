@@ -1,0 +1,349 @@
+\chapter{Introduction}
+\label{ch:intro}
+
+\section{A Program That Should Not Fail}
+\label{sec:motivating}
+
+Consider the fragment of code in Listing~\ref{lst:sb}.
+Two threads run
+concurrently on two cores of an ordinary multicore processor.
+Two shared
+variables, \code{x} and \code{y}, are both initialised to zero.
+Each thread
+writes~1 to one of them and then reads the other.
+
+\begin{lstlisting}[language=C,caption={The store-buffer idiom. Both threads write one shared variable and then read the other.},label={lst:sb}]
+/* initially: x == 0, y == 0 */
+
+/* Thread 0 */              /* Thread 1 */
+x = 1;                      y = 1;
+r0 = y;                     r1 = x;
+\end{lstlisting}
+
+Ask the following question: on termination, can both \code{r0} and \code{r1}
+hold the value zero?
+
+The argument that they cannot is short and appears airtight.
+The two stores are
+distinct events; one of them must occur before the other.
+Suppose without loss
+of generality that \code{x = 1} occurs first.
+Thread~1 reads \code{x} only after
+it has written \code{y}, and it wrote \code{y} after \code{x = 1} occurred.
+Hence Thread~1's read of \code{x} follows the store to \code{x}, and must return
+$1$, so \code{r1} $= 1$. By symmetry the same holds if \code{y = 1} occurs first.
+The outcome $\texttt{r0} = \texttt{r1} = 0$ therefore requires each read to have
+preceded a store that preceded it, which is a contradiction.
+
+This argument is valid.
+It is also, on essentially every processor sold today,
+empirically false.
+Compiled without synchronisation and run in a loop on a
+commodity x86 machine, the outcome $\texttt{r0} = \texttt{r1} = 0$ occurs.
+On an
+ARM machine it occurs more often, and so do several further outcomes that x86
+never produces.
+
+The argument fails not because any step of it is wrong, but because of an
+unstated premise: that a store, once executed by a core, is immediately visible
+to every other core.
+That premise is false, and it is false by deliberate design.
+It is discarded in exchange for performance, and the mechanism that discards it
+--- the \emph{store buffer} --- is present in every high-performance core built in
+the last thirty years.
+
+The consequence is not confined to artificial examples.
+Listing~\ref{lst:sb} is
+the core of Dekker's algorithm, the first published solution to mutual exclusion.
+Executed on hardware that permits the outcome above, Dekker's algorithm admits two
+threads into the critical section simultaneously.
+A correctness proof that has
+stood since 1965 does not transfer to the machine.
+
+\section{Coherence Is Not Enough}
+\label{sec:coherence-not-enough}
+
+A natural first response is that the machine in question must have a defective
+cache.
+It does not.
+The behaviour survives a perfectly correct implementation of
+cache coherence.
+
+Sarangi draws the distinction in \S12.4.2 and \S12.4.3 of the prescribed text
+\cite{sarangi2025basic}, and it is worth stating sharply because much of the
+confusion surrounding this topic originates in conflating the two notions.
+
+\emph{Coherence} is a guarantee about a single memory location. It requires that
+all cores observe the writes to any one address in a single agreed order, and that
+a read of that address returns the most recent value in that order.
+Protocols such
+as MSI, MESI and MOESI, treated in \S12.4.6 of the text and in Chapter~3 of this
+paper, exist to provide exactly this.
+They are well understood and correctly
+implemented in practice.
+
+\emph{Consistency} is a guarantee about the relative order of accesses to
+\emph{different} locations. Listing~\ref{lst:sb} involves two addresses. Coherence
+constrains the writes to \code{x} among themselves and the writes to \code{y}
+among themselves; it says nothing whatever about how Thread~0's store to \code{x}
+is ordered with respect to Thread~0's load of \code{y}.
+The anomalous outcome
+requires no violation of coherence and does not produce one.
+
+\begin{definition}[Memory consistency model]
+A \emph{memory consistency model} is the specification, forming part of a
+machine's architecture, of which orderings among memory operations issued by a
+single core are guaranteed to be preserved as seen by other cores, together with
+the instructions provided to the programmer for enforcing orderings that are not
+guaranteed by default.
+\end{definition}
+
+The model is a contract.
+Like the instruction set, it is an interface: hardware
+promises no less, software may assume no more.
+Unlike the instruction set, it is
+frequently absent from a programmer's mental model of the machine entirely, which
+is precisely why the failures it permits are so difficult to diagnose.
+
+\section{The Design Tension}
+\label{sec:tension}
+
+Figure~\ref{fig:tension} states the situation that this paper investigates.
+Two objectives are in conflict.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=0mm]
+  % axis
+  \draw[flow] (0,0) -- (12.6,0);
+  \node[lbl, anchor=west] at (12.7,0) {};
+
+  % ticks
+  \foreach \x/\name/\ex in {%
+     0.8/{Sequential\\consistency}/{(no shipping ISA)},
+     4.2/{TSO}/{x86, SPARC},
+     7.2/{PSO}/{SPARC},
+    10.8/{Weak / RMO}/{ARM, POWER, RISC-V}}
+  {
+    \draw (\x,0.12) -- (\x,-0.12);
+    \node[align=center, font=\small\bfseries, anchor=south] at (\x,0.22) {\name};
+    \node[align=center, font=\scriptsize\itshape, anchor=north] at (\x,-0.22) {\ex};
+  }
+
+  % annotations
+  \node[align=center, font=\small, anchor=north] at (0.8,-1.3)
+        {easy to reason about\\hard to make fast};
+  \node[align=center, font=\small, anchor=north] at (10.8,-1.3)
+        {fast\\hard to program correctly};
+
+  \draw[decorate,decoration={brace,amplitude=4pt,mirror}]
+        (0.2,-2.35) -- (11.4,-2.35);
+  \node[lbl, anchor=north] at (5.8,-2.5)
+        {increasingly weak contract $\longrightarrow$ more reordering permitted
+         $\longrightarrow$ more burden on the programmer};
+\end{tikzpicture}
+\caption{The design space of hardware memory consistency models. Every
+commercially deployed instruction set sits to the right of sequential
+consistency.}
+\label{fig:tension}
+\end{figure}
+
+At the left-hand end of the spectrum the hardware guarantees everything, and the
+reasoning of \S\ref{sec:motivating} is sound.
+The programmer needs no special
+instructions and no special knowledge.
+The cost is that the core must, in the
+naive implementation, stall on every store until that store is globally visible
+--- which is to say, it must abandon the store buffer, and with it a substantial
+fraction of its performance.
+
+At the right-hand end the hardware guarantees almost nothing and runs at full
+speed. The programmer is handed \emph{fence} instructions and made responsible for
+placing them wherever an ordering is genuinely required. Empirically, programmers
+place them incorrectly.
+The resulting defects are probabilistic, appear only under
+particular thread placements and core counts, and typically vanish under a
+debugger.
+Two decades of experience with the Java Memory Model
+\cite{manson2005java}, the C++ memory model \cite{boehm2008foundations} and the
+Linux kernel's own memory model attest to the difficulty.
+
+The industry chose the right-hand end.
+The justification was performance, and it
+was articulated in an era whose assumptions no longer hold.
+
+\section{Why the Question Is Open}
+\label{sec:why-open}
+
+Three developments since 1990 bear directly on the original trade-off.
+
+\paragraph{Speculation is now ubiquitous.} A modern out-of-order core executes
+instructions ahead of their architectural order and discards the results when a
+prediction turns out to have been wrong.
+It therefore already possesses a
+squash-and-restart mechanism, built for branch misprediction recovery, and it
+already receives coherence invalidation messages announcing remote writes.
+Together these are sufficient to enforce sequential consistency
+\emph{optimistically}: execute the load early, and roll back only in the rare case
+where a remote write proves that doing so was observable.
+Gniady, Falsafi and
+Vijaykumar posed this directly \cite{gniady1999sc}, and later work extended it to
+speculative store retirement and to chunk-based execution
+\cite{ceze2007bulksc,blundell2009invisifence}.
+
+\paragraph{Compilers matter as much as hardware.} Hardware sequential consistency
+is worthless if the compiler reorders shared accesses first.
+For a long time it
+was assumed that constraining the compiler would be prohibitively expensive.
+Marino et al.\ measured it and found the cost modest \cite{marino2011sc}.
+
+\paragraph{Core counts have grown by an order of magnitude.} The measurements that
+settled the original debate were taken on machines with between two and sixteen
+processors.
+Speculation-based SC depends on conflicts being rare; whether that
+premise survives at 64 or 128 cores is not established by any of the classical
+results.
+
+Against all of this stands one stubborn observation: \emph{no shipping processor
+implements sequential consistency}.
+If the performance objection has been answered,
+something else is keeping the industry where it is --- energy, verification cost,
+the irreversibility of an architectural commitment, or simple inertia.
+
+\section{Problem Statement}
+\label{sec:problem}
+
+\begin{quote}
+Sequential consistency was rejected as a hardware memory model on performance
+grounds in the late 1980s, on machines that did not speculate.
+This paper asks
+whether that verdict still holds.
+It (i)~formalises the design space between SC
+and the weak models actually deployed within a single ordering framework;
+(ii)~establishes by direct measurement on x86 and ARM hardware which relaxations
+are observable in practice, as distinct from those merely permitted by the
+architecture; and (iii)~quantifies, in a configurable multicore simulator, the
+execution-time cost of enforcing each model both with and without speculative
+load execution, across core counts beyond those examined in the classical
+literature.
+\end{quote}
+
+\noindent The problem decomposes into four questions.
+
+\begin{description}
+\item[Q1 (Formal).] Can SC, TSO, PSO, weak ordering and release consistency be
+  expressed as successively weaker constraints on a single set of relations over
+  memory events, and does the resulting hierarchy admit a proof of strict
+  containment?
+Chapter~4.
+
+\item[Q2 (Empirical).] For a catalogue of litmus tests, which outcomes are
+  permitted by each architecture's specification, and which are actually produced
+  by hardware?
+Where the two differ, what accounts for the difference?
+  Chapters~6--7.
+
+\item[Q3 (Quantitative).] Holding the microarchitecture fixed and varying only the
+  memory model, what is the execution-time cost of SC relative to TSO and weak
+  ordering, with and without speculative load execution, as a function of core
+  count?
+Chapters~8--9.
+
+\item[Q4 (Interpretive).] If the measured cost of speculative SC is small, what
+  accounts for its absence from shipping hardware?
+Chapter~11.
+\end{description}
+
+\section{Contributions}
+\label{sec:contributions}
+
+This paper claims the following.
+
+\begin{enumerate}
+\item A unified presentation of five memory consistency models within the
+  execution-witness formalism of Sarangi \cite{sarangi2023nextgen}, with the
+  containment hierarchy proved rather than asserted.
+
+\item A litmus-test suite, executed on both x86 and ARM hardware, reporting
+  observation frequencies rather than the usual binary
+  permitted/forbidden classification --- together with a measured cost, in
+  cycles, for the fence instructions that suppress each relaxation.
+
+\item A multicore simulator in which the memory consistency model is an
+  interchangeable component, permitting a controlled comparison in which the
+  model is the only variable.
+
+\item A verification chapter in which the simulator's exhaustively enumerated
+  outcomes are checked against the axiomatic definitions of Chapter~4, so that
+  the performance results rest on an implementation demonstrated to implement
+  the model it claims.
+
+\item A scaling study extending the speculative-SC question to core counts beyond
+  those examined in the 1999--2011 literature.
+\end{enumerate}
+
+\section{Relation to the Prescribed Text}
+\label{sec:relation}
+
+The paper is anchored in Chapter~12 of Sarangi \cite{sarangi2025basic}, and
+specifically in \S12.4.
+Table~\ref{tab:coverage} maps each chapter of this paper
+onto the sections of the text it extends.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Coverage of the prescribed text.}
+\label{tab:coverage}
+\begin{tabular}{@{}llp{6.1cm}@{}}
+\toprule
+\textbf{This paper} & \textbf{Text} & \textbf{Relationship} \\
+\midrule
+Ch.~2 Background   & \S11.2, \S11.3, \S10.11.4, \S12.2 &
+  Caches, the memory system, out-of-order pipelines, shared memory versus
+  message passing. \\
+Ch.~3 Coherence    & \S12.4.2, \S12.4.5, \S12.4.6, \S12.6 &
+  Extends the text's treatment of coherent private caches to full MESI and
+  MOESI transition tables and to directory protocols. \\
+Ch.~4 Models       & \S12.4.3, \S12.4.7 &
+  The core section of the text. Extended to a formal treatment of four further
+  models and a containment proof. \\
+Ch.~5 History      & \S12.7.2 &
+  Develops the further-reading pointers into a chronology. \\
+Ch.~6 Methodology  & \S12.4.3, \S10.9 &
+  Applies the text's performance-metric framework to litmus testing. \\
+Ch.~8--9 Simulation & \S10.9, \S12.4.7, \S12.6 &
+  Performance equation, consistency implementation, interconnect modelling. \\
+Ch.~11 Discussion  & \S12.2.3, App.~A &
+  Amdahl's law; the Cortex-A8, Cortex-A15 and Sandy Bridge case studies. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Where the treatment exceeds the scope of the prescribed text --- notably the
+axiomatic formalism, the relaxed models beyond TSO, and the speculative
+implementation techniques --- the primary sources are Chapter~9 of Sarangi's
+companion volume \cite{sarangi2023nextgen} and the memory-consistency primer of
+Nagarajan et al.\ \cite{nagarajan2020primer}.
+
+\section{Organisation of the Paper}
+\label{sec:organisation}
+
+Chapter~2 develops the microarchitectural background: why memory is slow, what
+caches and store buffers do about it, and how out-of-order execution compounds
+the reordering they introduce.
+Chapter~3 treats cache coherence and establishes
+precisely what it does and does not guarantee.
+Chapter~4 is the formal core:
+it defines the ordering relations and expresses each consistency model as a
+constraint over them.
+Chapter~5 traces the historical argument from Lamport's
+1979 paper to the ratification of RVWMO. Chapter~6 sets out the litmus-test
+methodology and experimental design for the results reported in later versions
+of this paper.
+
+\medskip
+\noindent\emph{Scope of version 0.1.} The present version comprises Chapters~1--6.
+Chapters~7--12, containing the hardware measurements, the simulator and its
+results, the verification study and the discussion, are the subject of versions
+v0.2 and v0.3.

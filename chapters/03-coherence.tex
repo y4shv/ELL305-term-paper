@@ -1,0 +1,227 @@
+\chapter{Cache Coherence, and What It Does Not Solve}
+\label{ch:coherence}
+
+Chapter~2 established that private caches admit multiple copies of a line.
+Coherence is the discipline that keeps those copies in agreement.
+This chapter
+develops it far enough to make two points precise: what coherence guarantees, and
+--- more importantly for this paper --- what it leaves entirely unconstrained.
+
+\section{The Coherence Invariants}
+\label{sec:invariants}
+
+Following the formulation of Nagarajan et al.\ \cite{nagarajan2020primer}, a
+memory system is coherent if it maintains two invariants.
+
+\begin{description}
+\item[Single-writer, multiple-reader (SWMR).] For any memory location and any
+  point in logical time, either exactly one core may write the location and no
+  core may read it, or any number of cores may read it and none may write.
+\item[Data value.] The value of a location at the start of an epoch is the value
+  written at the end of the last read--write epoch for that location.
+\end{description}
+
+The SWMR invariant is the operative one.
+It partitions the lifetime of each line
+into epochs, alternating between a single exclusive writer and a set of concurrent
+readers, and the protocol's task is to enforce that partition.
+
+An equivalent characterisation, and the one used in Sarangi's companion volume
+\cite{sarangi2023nextgen}, is that coherence is \emph{per-location sequential
+consistency} (PLSC): for each address considered in isolation, the machine behaves
+as though all accesses to that address occurred in a single total order consistent
+with each core's program order.
+Stated this way, the relationship to consistency
+becomes clear and is developed in \S\ref{sec:coh-vs-cons}.
+
+\section{Protocol Families}
+\label{sec:protocols}
+
+\subsection{Write-Invalidate versus Write-Update}
+
+Two families satisfy SWMR. A \emph{write-invalidate} protocol requires a core
+intending to write to first invalidate all other copies.
+A \emph{write-update}
+protocol instead broadcasts the new value to all holders.
+The prescribed text
+treats both (\S12.4.6); invalidate protocols dominate in practice, because update
+protocols consume interconnect bandwidth proportional to the number of sharers
+regardless of whether those sharers will ever read the line again.
+All protocols
+considered in this paper are invalidate-based.
+
+\subsection{MSI}
+
+The minimal invalidate protocol assigns each cached line one of three states.
+
+\begin{description}
+\item[M (Modified).] This cache holds the only valid copy, and it differs from
+  memory.
+The core may read or write freely.
+\item[S (Shared).] This cache holds a valid, clean copy; others may too. Reads
+  are permitted, writes are not.
+\item[I (Invalid).] No usable copy is present.
+\end{description}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    st/.style={circle, draw, minimum size=11mm, font=\bfseries, fill=black!5},
+    tr/.style={-{Latex[length=2mm]}, thick},
+    ann/.style={font=\scriptsize, align=center}]
+
+  \node[st] (M) at (0,3.2)   {M};
+  \node[st] (S) at (-3,0)    {S};
+  \node[st] (I) at (3,0)     {I};
+
+  \draw[tr] (I) to[bend right=18] node[ann,above right,pos=0.5]{PrRd / BusRd} (S);
+  \draw[tr] (S) to[bend right=18] node[ann,below,pos=0.5]{BusRdX / --} (I);
+  \draw[tr] (I) to[bend right=25] node[ann,right,pos=0.5]{PrWr /\\BusRdX} (M);
+  \draw[tr] (M) to[bend right=25] node[ann,left,pos=0.5]{BusRdX /\\Flush} (I);
+  \draw[tr] (S) to[bend left=18]  node[ann,left,pos=0.5]{PrWr /\\BusRdX} (M);
+  \draw[tr] (M) to[bend left=18]  node[ann,right,pos=0.5]{BusRd /\\Flush} (S);
+
+  \draw[tr] (M) to[loop above] node[ann,above]{PrRd, PrWr / --} (M);
+  \draw[tr] (S) to[loop left]  node[ann,left]{PrRd / --} (S);
+\end{tikzpicture}
+\caption{The MSI protocol. Transitions are labelled \emph{event / action}, where
+\code{Pr} denotes a request from the local processor and \code{Bus} a request
+observed on the interconnect.}
+\label{fig:msi}
+\end{figure}
+
+\subsection{MESI and MOESI}
+
+MSI is correct but wasteful.
+A core that reads a line no other core holds, and
+then writes it, must issue two bus transactions: a \code{BusRd} to enter S, and a
+\code{BusRdX} to reach M. Since private, unshared data is the common case, this is
+a frequent and avoidable cost.
+
+MESI adds an \textbf{E (Exclusive)} state: the line is clean and no other cache
+holds it.
+A write from E proceeds silently to M with no bus transaction at all.
+The additional requirement is a shared signal on the interconnect by which a
+requesting core learns whether any other cache responded.
+
+MOESI adds \textbf{O (Owned)}: a line that is dirty and shared, with one cache
+designated owner and responsible for supplying it to requesters.
+This permits
+sharing of modified data without an intervening writeback to memory.
+AMD
+processors use MOESI; Intel uses a MESI derivative with an additional forwarding
+state.
+Full transition tables for all three protocols are deferred to
+Appendix~F.
+
+\section{Snooping and Directories}
+\label{sec:snoop-dir}
+
+The protocols above describe states and transitions; a separate question is how a
+core's requests reach the others.
+
+\emph{Snooping} broadcasts every request on a shared medium that all caches
+observe.
+It is simple and provides a natural total order on transactions --- the
+order in which they win the bus --- but requires bandwidth proportional to the
+number of cores, and does not scale past roughly sixteen.
+
+\emph{Directory} protocols maintain, for each line, a record of which caches hold
+copies, and send point-to-point messages only to those.
+This scales, at the cost
+of an extra indirection through the directory (a three-hop rather than two-hop
+miss) and of storage for the sharer vectors.
+All modern large multicores are
+directory-based. The prescribed text treats directories in \S12.4.6; the
+interconnect topologies over which the messages travel are the subject of \S12.6
+and are relevant to this paper only insofar as they determine coherence latency,
+a parameter of the simulator in Chapter~8.
+
+\section{Coherence versus Consistency}
+\label{sec:coh-vs-cons}
+
+We can now state the distinction with the precision the rest of the paper
+requires.
+
+\begin{table}[H]
+\centering
+\small
+\caption{The division of labour between coherence and consistency.}
+\label{tab:coh-vs-cons}
+\begin{tabular}{@{}p{3.4cm}p{5.2cm}p{5.2cm}@{}}
+\toprule
+ & \textbf{Coherence} & \textbf{Consistency} \\
+\midrule
+Scope        & One address at a time & Across different addresses \\
+Guarantee    & A single total order of writes per location, visible to all cores
+             & Which program-order relations between operations are preserved
+               globally \\
+Mechanism    & MSI / MESI / MOESI, snooping or directory
+             & Store buffer discipline, fences, speculation \\
+Where it acts & At the cache
+             & Between the core and the cache \\
+Failure mode & A core reads a stale value of a location
+             & Two cores disagree about the relative order of accesses to
+               different locations \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The critical structural fact is the fourth row.
+\emph{The store buffer sits
+between the core and the cache}, and therefore in front of the coherence
+protocol entirely.
+A store resting in the buffer has not yet been presented to
+the coherence mechanism; there is nothing for the protocol to order, invalidate
+or broadcast.
+Coherence cannot police an operation it has not seen.
+
+This is why the outcome of \S\ref{sec:motivating} survives a perfect coherence
+implementation, and it is why the two topics --- which are frequently taught
+together and are treated in adjacent subsections of the prescribed text --- must
+be kept firmly apart.
+
+\begin{example}[Coherence holds; the anomaly persists]
+In Listing~\ref{lst:sb}, consider the accesses to \code{x}.
+There are two: Core~0's
+store and Core~1's load.
+Coherence requires only that they be totally ordered and
+that the load return the value written by the most recent preceding store in that
+order.
+Placing the load \emph{before} the store in coherence order satisfies this
+requirement exactly, and yields $\texttt{r1} = 0$. The symmetric argument for
+\code{y} yields $\texttt{r0} = 0$. Both coherence invariants hold throughout.
+\end{example}
+
+\section{What Coherence Does Contribute}
+\label{sec:coh-contribution}
+
+It would be wrong to conclude that coherence is irrelevant to consistency.
+It
+contributes two things that Chapter~4 will use.
+
+First, it supplies the \emph{coherence order} relation $\co$, a total order on
+the stores to each location, which is one of the primitive relations from which
+consistency models are constructed.
+
+Second, and more practically, the invalidation messages it generates constitute a
+ready-made notification service.
+When a core speculatively executes a load early,
+the arrival of an invalidation for that line is precisely the signal that the
+speculation may have been observable.
+An optimistic implementation of sequential
+consistency needs a detection mechanism, and coherence has already built one for
+other reasons.
+This observation, developed in Chapter~9, is what makes speculative
+SC comparatively cheap.
+
+\section{Summary}
+
+Coherence is a solved problem, correctly implemented in shipping hardware, and it
+guarantees per-location sequential consistency.
+It says nothing about the ordering
+of accesses to distinct locations, and cannot, because the mechanism that reorders
+them operates upstream of it.
+The specification of that cross-location ordering is
+a separate architectural decision, and it is to the space of such decisions that
+we now turn.
