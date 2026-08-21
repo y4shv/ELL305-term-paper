@@ -15,22 +15,27 @@ jobs:
       - name: Set up Git repository
         uses: actions/checkout@v4
 
-      - name: Compile LaTeX Document
+      - name: Compile LaTeX Documents
         uses: xu-cheng/latex-action@v3
         with:
-          root_file: main.tex
+          root_file: |
+            main.tex
+            draft1.tex
 
       - name: Fix file permissions & prepare output
         run: |
           sudo chown -R $USER:$USER .
           mkdir -p dist
           cp main.pdf dist/main.pdf
+          cp draft1.pdf dist/draft1.pdf
 
-      - name: Upload PDF Artifact
+      - name: Upload PDF Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: main.pdf
-          path: main.pdf
+          name: pdfs
+          path: |
+            main.pdf
+            draft1.pdf
 
       - name: Publish PDF to 'pdf' branch
         uses: peaceiris/actions-gh-pages@v4
