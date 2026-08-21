@@ -20,6 +20,12 @@ jobs:
         with:
           root_file: main.tex
 
+      - name: Fix file permissions & prepare output
+        run: |
+          sudo chown -R $USER:$USER .
+          mkdir -p dist
+          cp main.pdf dist/main.pdf
+
       - name: Upload PDF Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -27,22 +33,8 @@ jobs:
           path: main.pdf
 
       - name: Publish PDF to 'pdf' branch
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          
-          mkdir -p /tmp/pdf_out
-          cp main.pdf /tmp/pdf_out/main.pdf
-          
-          git fetch origin pdf:pdf || true
-          if git rev-parse --verify pdf >/dev/null 2>&1; then
-            git checkout pdf
-          else
-            git checkout --orphan pdf
-            git rm -rf .
-          fi
-          
-          cp /tmp/pdf_out/main.pdf ./main.pdf
-          git add main.pdf
-          git commit -m "Auto-generate main.pdf from latest main commit [skip ci]" || echo "No changes to commit"
-          git push origin pdf
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: pdf
+          publish_dir: ./dist
