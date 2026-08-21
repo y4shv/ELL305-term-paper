@@ -1,0 +1,380 @@
+\section{Work Done as of 24 August 2026}
+
+\subsection{Chosen Topic}
+
+The chosen topic is \textbf{memory consistency models} in shared-memory
+multiprocessors.
+
+\medskip
+\noindent\textbf{Working title.}\\
+\emph{Revisiting Sequential Consistency: Memory Consistency Models, Their Cost,
+and Whether Speculation Has Made Strong Ordering Affordable}
+
+\medskip
+\noindent\textbf{Scope.}
+A shared-memory multiprocessor must specify when, and in what order, one core's
+writes become visible to the others.
+That specification is the machine's memory consistency model, and it is an
+architectural contract as binding as the instruction set.
+The paper covers the design space from sequential consistency through TSO, PSO,
+weak ordering and release consistency; the mechanisms that make relaxation
+necessary (store buffers, out-of-order execution) and those that could make it
+unnecessary (speculative execution with coherence-based detection); and the
+historical argument that led the industry to reject sequential consistency
+around 1990.
+
+\medskip
+\noindent\textbf{Guiding question.}
+Sequential consistency was rejected as a hardware memory model on performance
+grounds in the late 1980s, on machines that did not speculate.
+A modern out-of-order core already contains both mechanisms a strong model
+requires --- coherence invalidations that announce remote writes, and a
+squash-and-restart path built for branch misprediction recovery.
+The paper asks whether the performance objection still holds, and, if it does
+not, what else accounts for the continued absence of sequentially consistent
+hardware.
+
+\medskip
+\noindent The work is organised around four questions:
+
+\begin{description}[leftmargin=2.2cm,style=nextline,font=\normalfont\bfseries]
+\item[Q1 Formal] Can SC, TSO, PSO, weak ordering and release consistency be
+  expressed as successively weaker constraints on a single set of ordering
+  relations, with strict containment proved rather than asserted?
+\item[Q2 Empirical] Which relaxations are \emph{observable} on real x86 and ARM
+  hardware, as distinct from those merely \emph{permitted} by the architecture?
+\item[Q3 Quantitative] Holding the microarchitecture fixed and varying only the
+  memory model, what does sequential consistency cost with and without
+  speculative load execution, as core count rises?
+\item[Q4 Interpretive] If speculative SC proves inexpensive, what accounts for
+  its absence from shipping processors?
+\end{description}
+
+\subsection{Mapping to the Prescribed Textbook}
+
+The prescribed text is S.\,R.~Sarangi, \emph{Basic Computer Architecture},
+version 3.09 \cite{sarangi2025basic}.
+The topic maps principally to \textbf{Chapter 12, \emph{Multiprocessor
+Systems}}, and within it to \textbf{\S12.4, \emph{MIMD Multiprocessors}}.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}llp{6.6cm}@{}}
+\toprule
+\textbf{\S} & \textbf{Title (page)} & \textbf{Role in the paper} \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{Primary --- Chapter 12}} \\
+12.4.1 & Logical Point of View (579)          & Shared-memory abstraction. \\
+12.4.2 & Coherence (581)                      & The coherence/consistency distinction, developed at length. \\
+12.4.3 & \textbf{Memory Consistency (583)}    & \textbf{The core section. The paper is an extension of this.} \\
+12.4.5 & Shared Caches (596)                  & Background. \\
+12.4.6 & Coherent Private Caches (596)        & Extended to full MESI/MOESI and directory protocols. \\
+12.4.7 & Implementing a Memory Consistency Model$^*$ (603) & Direct antecedent of the speculative-SC discussion. \\
+\addlinespace
+\multicolumn{3}{@{}l}{\textbf{Supporting}} \\
+10.4   & Pipeline Hazards (420)               & Reordering and dependences. \\
+10.9   & Performance Metrics (463)            & Benchmarking framework. \\
+10.11.4& Out-of-Order Pipelines (492)         & Speculation and the squash mechanism. \\
+11.2   & Caches (517)                         & Private caches, non-blocking misses. \\
+11.3   & The Memory System (532)              & Latency figures motivating the store buffer. \\
+12.2.2 & Shared Memory vs Message Passing (571)& Framing. \\
+12.2.3 & Amdahl's Law (576)                   & Scaling discussion. \\
+12.6   & Interconnection Networks (620)       & Coherence latency in the simulator. \\
+App.~A & Cortex-A8/A15, Sandy Bridge (734--746)& Real-machine case studies. \\
+\bottomrule
+\end{tabular}
+\caption{Mapping of the topic onto the prescribed text. $^*$ denotes a section
+marked advanced.}
+\end{table}
+
+\noindent\textbf{Additional texts.} Because \S12.4.3 treats only sequential
+consistency and the relaxed models are outside the scope of the prescribed
+text, three further sources carry the technical weight of the paper.
+All are fully specified, with reproduced tables of contents, in
+Chapter~7 of the paper draft.
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+\item S.\,R.~Sarangi, \emph{Next-Gen Computer Architecture: Till the End of
+  Silicon}, White Falcon 2023, ISBN 8119510143 \cite{sarangi2023nextgen}.
+  Chapter~9, \emph{Multicore Systems: Coherence, Consistency and Transactional
+  Memory}, runs to roughly 118 pages and is the source of the formalism used
+  throughout.
+\item V.~Nagarajan, D.\,J.~Sorin, M.\,D.~Hill and D.\,A.~Wood, \emph{A Primer
+  on Memory Consistency and Cache Coherence}, 2nd ed., Springer 2020
+  \cite{nagarajan2020primer}. The standard reference on the subject.
+\item Vendor architecture manuals (Intel SDM Vol.~3A; Arm ARM Ch.~B2;
+  RISC-V RVWMO), cited in preference to any textbook wherever the paper states
+  what a particular instruction set guarantees.
+\end{itemize}
+
+\subsection{Advisor}
+
+I will consult \textbf{Prof.~[Sumantra Dutta Roy / Subrat Kar --- SELECT ONE]}
+as advised.
+
+\medskip
+\noindent Zotero library \texttt{ELL305-MemoryConsistency} has been created and
+will be shared with Prof.~Subrat Kar. Bibliography is exported to
+\texttt{refs.bib} and rendered via BibTeX.
+
+\subsection{Progress}
+
+\subsubsection*{Summary}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}clcc@{}}
+\toprule
+\textbf{WP} & \textbf{Work package} & \textbf{Target} & \textbf{Complete} \\
+\midrule
+WP1 & Foundations: prescribed textbook          & 31 Aug & \pct{55} \\
+WP2 & Advanced sources                          & 14 Sep & \pct{30} \\
+WP3 & Literature survey and Zotero              & 21 Sep & \pct{35} \\
+WP4 & Writing: formal, historical, methodological chapters & 24 Aug & \pct{90} \\
+WP5 & Litmus experiments on real hardware       & 28 Sep & \pct{10} \\
+WP6 & Simulator design and evaluation           & 26 Oct & \pct{0} \\
+WP7 & Verification                              & 02 Nov & \pct{0} \\
+WP8 & Final assembly and appendices             & 11 Nov & \pct{0} \\
+\midrule
+    & \textbf{Overall}                          &        & \pct{28} \\
+\bottomrule
+\end{tabular}
+\caption{Work package status as of 24 August 2026.}
+\end{table}
+
+\noindent\fbox{\parbox{0.96\textwidth}{\small
+\textbf{Note to the author:} every percentage in this section and in the Gantt
+chart must be corrected to reflect what has \emph{actually} been done before
+submission. Figures that overstate progress will be contradicted by the next
+draft and are not worth the marks they might gain.}}
+
+\subsubsection*{Gantt Chart}
+
+\clearpage
+\begin{figure}[H]
+\centering
+\begin{ganttchart}[
+    hgrid, vgrid,
+    x unit=7mm,
+    y unit title=7mm,
+    y unit chart=5mm,
+    title height=1,
+    bar height=0.6,
+    group label font=\bfseries\scriptsize,
+    bar label font=\scriptsize,
+    milestone label font=\scriptsize\itshape,
+    title label font=\scriptsize\bfseries,
+    group/.append style={fill=wpcol, draw=wpcol},
+    bar/.append style={fill=donecol!70, draw=donecol},
+    progress label text={\scriptsize\textbf{#1\%}},
+    progress label anchor/.style={left=2pt},
+  ]{1}{13}
+
+  \gantttitle{Aug}{2}
+  \gantttitle{Sep}{4}
+  \gantttitle{Oct}{4}
+  \gantttitle{Nov}{3} \\
+  \gantttitlelist{1,...,13}{1} \\
+
+  \ganttgroup[progress=55]{WP1 Foundations}{1}{3} \\
+  \ganttbar[progress=100]{T1.1 Sarangi Ch.\ 11}{1}{1} \\
+  \ganttbar[progress=70]{T1.2 Sarangi \S12.1--12.4.6}{1}{2} \\
+  \ganttbar[progress=20]{T1.3 Sarangi \S12.4.7}{2}{3} \\
+  \ganttbar[progress=40]{T1.4 Sarangi \S10.11.4}{2}{3} \\
+
+  \ganttgroup[progress=30]{WP2 Advanced sources}{1}{5} \\
+  \ganttbar[progress=45]{T2.1 Next-Gen \S9.1--9.4}{1}{3} \\
+  \ganttbar[progress=15]{T2.2 Next-Gen \S9.5--9.9}{3}{5} \\
+  \ganttbar[progress=40]{T2.3 Primer Ch.\ 3--5}{1}{3} \\
+  \ganttbar[progress=10]{T2.4 Primer Ch.\ 6--8, 11}{3}{5} \\
+
+  \ganttgroup[progress=35]{WP3 Literature \& Zotero}{1}{6} \\
+  \ganttbar[progress=80]{T3.1 Zotero library}{1}{2} \\
+  \ganttbar[progress=30]{T3.2 Six core papers}{2}{4} \\
+  \ganttbar[progress=5]{T3.3 Vendor manuals}{4}{6} \\
+
+  \ganttgroup[progress=90]{WP4 Writing (Ch.\ 1--7)}{1}{2} \\
+  \ganttbar[progress=100]{T4.1 Ch.\ 1--3}{1}{1} \\
+  \ganttbar[progress=95]{T4.2 Ch.\ 4 formal}{1}{2} \\
+  \ganttbar[progress=90]{T4.3 Ch.\ 5 history}{1}{2} \\
+  \ganttbar[progress=85]{T4.4 Ch.\ 6 methodology}{1}{2} \\
+
+  \ganttgroup[progress=10]{WP5 Litmus experiments}{2}{7} \\
+  \ganttbar[progress=25]{T5.1 Test harness}{2}{3} \\
+  \ganttbar[progress=5]{T5.2 Test catalogue}{3}{5} \\
+  \ganttbar[progress=0]{T5.3 Run on x86, AArch64}{5}{6} \\
+  \ganttbar[progress=0]{T5.4 Write Ch.\ 8}{6}{7} \\
+
+  \ganttgroup[progress=0]{WP6 Simulator}{4}{11} \\
+  \ganttbar[progress=0]{T6.1 Cores, store buffers}{4}{6} \\
+  \ganttbar[progress=0]{T6.2 MESI directory}{5}{7} \\
+  \ganttbar[progress=0]{T6.3 Ordering policies}{7}{9} \\
+  \ganttbar[progress=0]{T6.4 Workloads, sweeps}{8}{10} \\
+  \ganttbar[progress=0]{T6.5 Write Ch.\ 9--10}{9}{11} \\
+
+  \ganttgroup[progress=0]{WP7 Verification}{9}{12} \\
+  \ganttbar[progress=0]{T7.1 Axiomatic checker}{9}{11} \\
+  \ganttbar[progress=0]{T7.2 Write Ch.\ 11}{11}{12} \\
+
+  \ganttgroup[progress=0]{WP8 Final assembly}{10}{13} \\
+  \ganttbar[progress=0]{T8.1 Ch.\ 12--13}{10}{12} \\
+  \ganttbar[progress=0]{T8.2 Appendices A--G}{11}{13} \\
+  \ganttbar[progress=0]{T8.3 Revision passes}{12}{13} \\
+
+  \ganttmilestone{v0.1 (24 Aug)}{2} \\
+  \ganttmilestone{v0.2}{7} \\
+  \ganttmilestone{v0.3}{11} \\
+  \ganttmilestone{v1.0 (11 Nov)}{13}
+\end{ganttchart}
+\caption{Project schedule. Week 1 commences 17 August 2026; week 13 commences
+9 November 2026. Shaded portions of each bar indicate completion. Milestone
+dates for v0.2 and v0.3 are estimates pending confirmation.}
+\end{figure}
+\clearpage
+
+\subsubsection*{Work Package Detail}
+
+\paragraph{WP1 --- Foundations (\pct{55}).}
+\begin{itemize}[leftmargin=*,itemsep=1pt]
+\item \textbf{T1.1} Sarangi \cite{sarangi2025basic} Ch.~11, \emph{The Memory
+  System}, \S11.1--11.3 (pp.~505--560). \pct{100}. Cache organisation, locality,
+  and the latency figures that motivate the store buffer.
+\item \textbf{T1.2} Sarangi Ch.~12, \S12.1--12.4.6 (pp.~565--603). \pct{70}.
+  \S12.4.2 and \S12.4.3 read closely; \S12.4.6 in progress.
+\item \textbf{T1.3} Sarangi \S12.4.7, \emph{Implementing a Memory Consistency
+  Model} (pp.~603--608). \pct{20}. Begun; requires \S12.4.6 first.
+\item \textbf{T1.4} Sarangi \S10.11.4, \emph{Out-of-Order Pipelines}
+  (pp.~492--505). \pct{40}. Needed for the squash mechanism central to Q3.
+\end{itemize}
+
+\paragraph{WP2 --- Advanced sources (\pct{30}).}
+\begin{itemize}[leftmargin=*,itemsep=1pt]
+\item \textbf{T2.1} Sarangi \cite{sarangi2023nextgen} \S9.1--9.4. \pct{45}.
+  \S9.4 supplies the execution-witness and access-graph notation adopted
+  throughout the paper, chosen over the alternatives for continuity with the
+  course.
+\item \textbf{T2.2} Sarangi \S9.5--9.9 (coherence protocols, memory models,
+  race detection, transactional memory). \pct{15}.
+\item \textbf{T2.3} Nagarajan et al.\ \cite{nagarajan2020primer} Ch.~3--5
+  (SC, TSO, relaxed models). \pct{40}.
+\item \textbf{T2.4} Nagarajan et al.\ Ch.~6--8, 11 (coherence protocols,
+  specification and validation). \pct{10}.
+\end{itemize}
+
+\paragraph{WP3 --- Literature and Zotero (\pct{35}).}
+\begin{itemize}[leftmargin=*,itemsep=1pt]
+\item \textbf{T3.1} Zotero library created; 22 entries filed with PDFs.
+  \pct{80}. Exported to \texttt{refs.bib}, under version control.
+\item \textbf{T3.2} Six papers identified as load-bearing for the argument and
+  to be read in full rather than consulted: Lamport
+  \cite{lamport1979multiprocessor}; Dubois, Scheurich and Briggs
+  \cite{dubois1986memory}; Adve and Hill \cite{adve1990weak}; Adve and
+  Gharachorloo \cite{adve1996shared}; Gniady, Falsafi and Vijaykumar
+  \cite{gniady1999sc}; Alglave, Maranget and Tautschnig
+  \cite{alglave2014herding}. \pct{30}.
+\item \textbf{T3.3} Vendor manuals \cite{intel_sdm,arm_arm,riscv_spec}.
+  \pct{5}.
+\end{itemize}
+
+\noindent Further references filed and cited: Gharachorloo et al.\
+\cite{gharachorloo1990memory}; Hill \cite{hill1998multiprocessors}; Manson,
+Pugh and Adve \cite{manson2005java}; Boehm and Adve
+\cite{boehm2008foundations}; Ceze et al.\ \cite{ceze2007bulksc}; Blundell,
+Martin and Wenisch \cite{blundell2009invisifence}; Marino et al.\
+\cite{marino2011sc}. Supporting texts: Hennessy and Patterson
+\cite{hennessy2019quantitative}; Culler, Singh and Gupta
+\cite{culler1998parallel}; Herlihy et al.\ \cite{herlihy2020art}.
+
+\paragraph{WP4 --- Writing (\pct{90}).}
+A 42-page draft of the paper proper exists in the repository
+(\texttt{main.tex}), comprising:
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}rlc@{}}
+\toprule
+\textbf{Ch.} & \textbf{Title} & \textbf{State} \\
+\midrule
+1 & Introduction --- motivating example, problem statement, contributions & drafted \\
+2 & Background --- memory wall, caches, store buffer, out-of-order & drafted \\
+3 & Cache Coherence, and What It Does Not Solve & drafted \\
+4 & The Design Space of Memory Consistency Models & drafted \\
+5 & Historical Evolution & drafted \\
+6 & Methodology & drafted \\
+7 & Source Texts and Their Coverage & drafted \\
+\bottomrule
+\end{tabular}
+\caption{State of the paper draft. Seven chapters, 42 pages, five TikZ figures,
+compiling without errors or undefined references.}
+\end{table}
+
+\noindent All figures are drawn in TikZ per the course requirement. The
+document is built with \texttt{latexmk}; \texttt{main.pdf} is deliberately
+excluded from version control and attached instead to tagged releases.
+
+\paragraph{WP5 --- Litmus experiments (\pct{10}).}
+Design complete and documented in Chapter~6 of the paper draft; implementation
+begun. The harness must avoid \texttt{pthread\_barrier}, whose internal fences
+suppress the window under observation, in favour of a sense-reversing spin
+barrier built from relaxed atomics. Shared variables are padded to distinct
+cache lines to prevent false sharing from confounding the coherence behaviour.
+
+\paragraph{WP6--WP8 (\pct{0}).}
+Not started; scheduled per the Gantt chart. Designs for WP6 (simulator) and
+WP7 (verification) are specified in Chapter~6 of the paper draft, stated in
+advance so that the methodology can be assessed independently of the results.
+
+\subsection{Risks and Mitigations}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}p{4.6cm}cp{7.0cm}@{}}
+\toprule
+\textbf{Risk} & \textbf{Sev.} & \textbf{Mitigation} \\
+\midrule
+Litmus tests yield zero observations, making Ch.~8 empty
+ & Med & Vary thread placement, optimisation level and inserted delay; a null
+        result with the parameter sweep documented is itself reportable. \\
+Simulator scope creep consumes the schedule
+ & High & Feature list frozen after v0.2. Purpose-built simulator is the
+         baseline; Tejas \cite{sarangi2023nextgen} evaluated in parallel as a
+         stretch goal only, never a dependency. \\
+No AArch64 hardware available for Q2
+ & Med & Single-board computer, Android device under Termux, or institutional
+         server; failing all three, Q2 narrows to x86 and the limitation is
+         stated. \\
+Topic requires material beyond the course
+ & Low & Sarangi's companion volume \cite{sarangi2023nextgen} is pitched at
+        exactly this level and is by the same author. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Plan to v0.2}
+
+\begin{enumerate}[leftmargin=*,itemsep=2pt]
+\item Complete WP1 (T1.2--T1.4) and advance WP2 to \pct{70}.
+\item Read the six load-bearing papers in full (T3.2 to \pct{100}).
+\item Implement the litmus harness and the full test catalogue; obtain
+  observation counts on x86 and, if hardware permits, AArch64.
+\item Draft Chapter~8 (Results I) from those measurements.
+\item Begin WP6: cores, store buffers and load queue.
+\item Insert the measured SB violation count into \S1.1 of the paper, so that
+  the opening example is a measurement rather than an assertion.
+\end{enumerate}
+
+\subsection{Repository}
+
+All work is under version control at\\
+\texttt{https://github.com/y4shv/ELL305-term-paper} (private; access granted to
+the instructor on request).
+
+\medskip
+\noindent Draft \#1 corresponds to tag \texttt{v0.1}.
+\texttt{draft1.tex} builds this progress report; \texttt{main.tex} builds the
+paper draft described in WP4.
+\texttt{refs.bib} is exported from Zotero.

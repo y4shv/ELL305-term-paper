@@ -17,8 +17,27 @@ Cost, and Whether Speculation Has Made Strong Ordering Affordable
 stored on GitHub and submitted via Gradescope. v1.0 is final (12 marks), due
 **11 November 2026**.
 
-**Target length:** v0.1 is 30–40 pages. v1.0 is approximately 150 pages /
-35,000 words of body, plus roughly 50 pages of appendices.
+**Target length:** v1.0 is approximately 150 pages / 35,000 words of body, plus
+roughly 50 pages of appendices.
+
+---
+
+## IMPORTANT — draft #1 is a PROGRESS REPORT, not a preliminary paper
+
+Per the instructor's guidance of 21 Aug 2026, the 24 Aug submission is
+"Section 1: Work done as of 24 Aug 2026" — chosen topic, mapping to the
+textbook chapter, choice of advisor, a Gantt chart drawn in LaTeX, work
+packages broken into tasks with percentage complete, and all references read
+so far cited.
+
+Two documents therefore build from this repo:
+
+- **`draft1.tex` → the 24 Aug submission.** 8 pages. Progress report with a
+  pgfgantt chart. Content lives in `chapters/s1-progress.tex`.
+- **`main.tex` → the paper proper.** 42 pages, chapters 1–7 drafted. This is
+  *evidence of progress* (work package WP4), not the 24 Aug deliverable.
+
+Both compile clean with zero undefined references.
 
 ---
 
@@ -42,43 +61,45 @@ Four questions structure the work:
 - **Q1 Formal** — express SC, TSO, PSO, weak ordering and RC as constraints on
   one set of ordering relations; prove strict containment. (Ch. 4)
 - **Q2 Empirical** — which relaxations are *observable* on real x86 and ARM
-  hardware, as distinct from merely *permitted*? (Ch. 6–7)
+  hardware, as distinct from merely *permitted*? (Ch. 6, 8)
 - **Q3 Quantitative** — holding microarchitecture fixed and varying only the
   memory model, what does SC cost with and without speculation, as core count
-  rises? (Ch. 8–9)
+  rises? (Ch. 9–10)
 - **Q4 Interpretive** — if speculative SC is cheap, why does nobody ship it?
-  (Ch. 11)
+  (Ch. 12)
 
-**Do not let the paper drift into a summary of the textbook.** Chapters 6–10
-are roughly 40% of the body and exist only if the experiments are actually run.
-That is the difference between a term paper and a long book report.
+**Do not let the paper drift into a summary of the textbook.** The results
+chapters are roughly 40% of the body and exist only if the experiments are
+actually run. That is the difference between a term paper and a long book
+report.
 
 ---
 
 ## Current state
 
-**v0.1 is complete: 42 pages, compiles clean, zero undefined references.**
-
 | File | Contents |
 |---|---|
+| `draft1.tex` | Builds the 24 Aug progress report |
+| `chapters/s1-progress.tex` | Progress report content: topic, textbook mapping, advisor, Gantt, WP detail, risks, plan |
+| `main.tex` | Builds the paper proper |
 | `chapters/00-title.tex` | Title page — **placeholders still to fill in** |
 | `chapters/00-abstract.tex` | Abstract |
-| `chapters/01-introduction.tex` | SB example, problem statement, contributions, textbook coverage table |
+| `chapters/01-introduction.tex` | SB example, problem statement, contributions, coverage table |
 | `chapters/02-background.tex` | Memory wall, caches, store buffer, out-of-order |
 | `chapters/03-coherence.tex` | MSI/MESI/MOESI, coherence vs consistency |
 | `chapters/04-models.tex` | Relations, litmus tests, five models, containment theorem, fences, DRF |
 | `chapters/05-history.tex` | 1979 → RVWMO chronology |
-| `chapters/06-methodology.tex` | Experimental design for v0.2/v0.3 |
-| `chapters/07-sources.tex` | Full source specification with reproduced ToC extracts |
+| `chapters/06-methodology.tex` | Experimental design |
+| `chapters/07-sources.tex` | Source specification with reproduced ToC extracts |
 
 ### Planned for v0.2 and v0.3
 
-- Ch. 7 → renumber; Results I: litmus tests on real x86 and ARM
-- Ch. 8: Simulator design
-- Ch. 9: Results II: SC vs TSO vs Weak, with and without speculation
-- Ch. 10: Verification — axiomatic checker vs simulator
-- Ch. 11: Discussion — does the 1990 verdict still hold?
-- Ch. 12: Conclusion
+- Ch. 8: Results I — litmus tests on real x86 and ARM
+- Ch. 9: Simulator design
+- Ch. 10: Results II — SC vs TSO vs Weak, with and without speculation
+- Ch. 11: Verification — axiomatic checker vs simulator
+- Ch. 12: Discussion — does the 1990 verdict still hold?
+- Ch. 13: Conclusion
 - Appendices A–G: litmus catalogue, proofs, simulator docs, raw data, fence
   reference, protocol state tables, annotated bibliography
 
@@ -94,22 +115,20 @@ already follow this. Keep it.
 **Formatting is fixed by the course.** A4, 1 inch margins, 0.5 inch binding
 offset, 11 pt, single spaced. Do not change the geometry.
 
-**All figures in TikZ or circuitikz.** No external images, no PNG, no
-matplotlib output pasted in as a graphic — plots for the results chapters are
-generated as vector PDF from CSV, but structural diagrams are TikZ. There is a
+**All figures in TikZ, circuitikz or pgfgantt.** No external images. There is a
 house style defined in `main.tex` (`unit`, `core`, `buf`, `mem`, `flow`, `slow`,
 `lbl`). Use it rather than inventing per-figure styles.
 
 **`refs.bib` is append-only.** Never sort or reformat it — a reformat touches
 every line and conflicts with everything the other author did.
 
-**`main.pdf` is gitignored.** It is binary; git cannot merge it. Build locally.
+**PDFs are gitignored.** They are binary; git cannot merge them. Build locally.
 For submissions, tag the commit and attach the PDF to a GitHub Release.
 
 **Notation.** Follows Sarangi's *Next-Gen* §9.4 (execution witnesses, access
 graphs) rather than the Primer's or Alglave's, for continuity with the course.
-Macros are defined in `main.tex`: `\po`, `\rf`, `\co`, `\fr`, `\ppo`, `\Ld{}`,
-`\St{}`, `\code{}`. A correspondence table is in §7.6.
+Macros are in `main.tex`: `\po`, `\rf`, `\co`, `\fr`, `\ppo`, `\Ld{}`, `\St{}`,
+`\code{}`. A correspondence table is in §7.6.
 
 ---
 
@@ -140,12 +159,13 @@ copy before citing.
 ## Build
 
 ```bash
-latexmk -pdf main.tex
+latexmk -pdf draft1.tex     # the 24 Aug submission
+latexmk -pdf main.tex       # the paper proper
 ```
 
 If `lmodern.sty` or `microtype` is missing, install
-`texlive-fonts-recommended`, or comment out those two lines in `main.tex`.
-Nothing else depends on them.
+`texlive-fonts-recommended`, or comment out those two lines. Nothing else
+depends on them.
 
 ---
 
@@ -159,6 +179,10 @@ asked to "improve the paper", ask which chapter.
 `refs.bib`, say so rather than fabricating an entry. Every reference must be one
 the author can actually produce.
 
+**Do not inflate progress percentages.** The Gantt chart and work-package tables
+must reflect what has actually been done. Overstated figures are contradicted by
+the next draft.
+
 **Do not pad.** The page target is met by running the experiments, not by
 lengthening prose. If a chapter is short, the answer is usually more data, not
 more words.
@@ -170,10 +194,14 @@ is worse than no prose.
 
 ---
 
-## Immediate to-do
+## Immediate to-do (before 24 Aug)
 
-1. Fill in name, entry number, instructor in `chapters/00-title.tex`
-2. Fill in the ownership table in `COLLABORATING.md`
-3. Verify Sarangi section numbers against the author's copy of v3.09
-4. Write and run the SB litmus test; put the observed violation count into §1.1
-   so the opening is a measurement rather than an assertion
+1. **Choose the advisor** — Prof. Sumantra Dutta Roy OR Prof. Subrat Kar.
+   Placeholder in `chapters/s1-progress.tex` §1.3.
+2. **Correct every completion percentage** in `chapters/s1-progress.tex` to
+   reflect reality. The current figures are estimates.
+3. Fill in names and entry numbers in `draft1.tex` and `chapters/00-title.tex`.
+4. Create the Zotero library and share it with Prof. Subrat Kar.
+5. Verify Sarangi section numbers against the author's copy of v3.09.
+6. Write and run the SB litmus test; the observed violation count goes into
+   §1.1 of `main.tex` so the opening is a measurement, not an assertion.

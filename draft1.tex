@@ -1,0 +1,57 @@
+%=======================================================================
+%  ELL305 Computer Architecture
+%  Term Paper -- Draft #1 (v0.1): PROGRESS REPORT
+%  Due 24 August 2026
+%
+%  Per the instructor's guidance of 21 Aug 2026, draft #1 is a progress
+%  report on work done to date, not a preliminary version of the paper.
+%  The paper itself is built from main.tex.
+%=======================================================================
+\documentclass[11pt,a4paper,oneside]{article}
+
+\usepackage[a4paper,margin=1in,bindingoffset=0.5in]{geometry}
+\usepackage{setspace}
+\singlespacing
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{enumitem}
+
+\usepackage{tikz}
+\usepackage{pgfgantt}
+\usetikzlibrary{arrows.meta,positioning,calc}
+
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+
+% ---- Gantt house style ----
+\definecolor{wpcol}{RGB}{40,70,120}
+\definecolor{donecol}{RGB}{60,140,90}
+\definecolor{todocol}{RGB}{170,175,185}
+
+\newcommand{\pct}[1]{\textbf{#1\%}}
+
+\title{\vspace{-1.5cm}\textbf{ELL305 Computer Architecture}\\[4pt]
+       \large Term Paper --- Draft \#1 (v0.1)\\[2pt]
+       \normalsize Progress Report: Work Done as of 24 August 2026}
+\author{\textit{[Your Name], [Entry Number]}\\
+        \textit{[Partner Name], [Entry Number]}}
+\date{24 August 2026}
+
+\begin{document}
+\maketitle
+
+\input{chapters/s1-progress}
+
+\bibliographystyle{plain}
+\bibliography{refs}
+
+\end{document}
