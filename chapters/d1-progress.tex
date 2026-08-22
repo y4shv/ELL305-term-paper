@@ -1,126 +1,9 @@
-\section{Work Done as of 24 August 2026}
+\section{Progress as of 24 August 2026}
+\label{sec:progress}
 
-\subsection{Chosen Topic}
 
-The chosen topic is \textbf{memory consistency models} in shared-memory
-multiprocessors.
 
-\medskip
-\noindent\textbf{Working title.}\\
-\emph{Revisiting Sequential Consistency: Memory Consistency Models, Their Cost,
-and Whether Speculation Has Made Strong Ordering Affordable}
-
-\medskip
-\noindent\textbf{Scope.}
-A shared-memory multiprocessor must specify when, and in what order, one core's
-writes become visible to the others.
-That specification is the machine's memory consistency model, and it is an
-architectural contract as binding as the instruction set.
-The paper covers the design space from sequential consistency through TSO, PSO,
-weak ordering and release consistency; the mechanisms that make relaxation
-necessary (store buffers, out-of-order execution) and those that could make it
-unnecessary (speculative execution with coherence-based detection); and the
-historical argument that led the industry to reject sequential consistency
-around 1990.
-
-\medskip
-\noindent\textbf{Guiding question.}
-Sequential consistency was rejected as a hardware memory model on performance
-grounds in the late 1980s, on machines that did not speculate.
-A modern out-of-order core already contains both mechanisms a strong model
-requires --- coherence invalidations that announce remote writes, and a
-squash-and-restart path built for branch misprediction recovery.
-The paper asks whether the performance objection still holds, and, if it does
-not, what else accounts for the continued absence of sequentially consistent
-hardware.
-
-\medskip
-\noindent The work is organised around four questions:
-
-\begin{description}[leftmargin=2.2cm,style=nextline,font=\normalfont\bfseries]
-\item[Q1 Formal] Can SC, TSO, PSO, weak ordering and release consistency be
-  expressed as successively weaker constraints on a single set of ordering
-  relations, with strict containment proved rather than asserted?
-\item[Q2 Empirical] Which relaxations are \emph{observable} on real x86 and ARM
-  hardware, as distinct from those merely \emph{permitted} by the architecture?
-\item[Q3 Quantitative] Holding the microarchitecture fixed and varying only the
-  memory model, what does sequential consistency cost with and without
-  speculative load execution, as core count rises?
-\item[Q4 Interpretive] If speculative SC proves inexpensive, what accounts for
-  its absence from shipping processors?
-\end{description}
-
-\subsection{Mapping to the Prescribed Textbook}
-
-The prescribed text is S.\,R.~Sarangi, \emph{Basic Computer Architecture},
-version 3.09 \cite{sarangi2025basic}.
-The topic maps principally to \textbf{Chapter 12, \emph{Multiprocessor
-Systems}}, and within it to \textbf{\S12.4, \emph{MIMD Multiprocessors}}.
-
-\begin{table}[H]
-\centering
-\small
-\begin{tabular}{@{}llp{6.6cm}@{}}
-\toprule
-\textbf{\S} & \textbf{Title (page)} & \textbf{Role in the paper} \\
-\midrule
-\multicolumn{3}{@{}l}{\textbf{Primary --- Chapter 12}} \\
-12.4.1 & Logical Point of View (579)          & Shared-memory abstraction. \\
-12.4.2 & Coherence (581)                      & The coherence/consistency distinction, developed at length. \\
-12.4.3 & \textbf{Memory Consistency (583)}    & \textbf{The core section. The paper is an extension of this.} \\
-12.4.5 & Shared Caches (596)                  & Background. \\
-12.4.6 & Coherent Private Caches (596)        & Extended to full MESI/MOESI and directory protocols. \\
-12.4.7 & Implementing a Memory Consistency Model$^*$ (603) & Direct antecedent of the speculative-SC discussion. \\
-\addlinespace
-\multicolumn{3}{@{}l}{\textbf{Supporting}} \\
-10.4   & Pipeline Hazards (420)               & Reordering and dependences. \\
-10.9   & Performance Metrics (463)            & Benchmarking framework. \\
-10.11.4& Out-of-Order Pipelines (492)         & Speculation and the squash mechanism. \\
-11.2   & Caches (517)                         & Private caches, non-blocking misses. \\
-11.3   & The Memory System (532)              & Latency figures motivating the store buffer. \\
-12.2.2 & Shared Memory vs Message Passing (571)& Framing. \\
-12.2.3 & Amdahl's Law (576)                   & Scaling discussion. \\
-12.6   & Interconnection Networks (620)       & Coherence latency in the simulator. \\
-App.~A & Cortex-A8/A15, Sandy Bridge (734--746)& Real-machine case studies. \\
-\bottomrule
-\end{tabular}
-\caption{Mapping of the topic onto the prescribed text. $^*$ denotes a section
-marked advanced.}
-\end{table}
-
-\noindent\textbf{Additional texts.} Because \S12.4.3 treats only sequential
-consistency and the relaxed models are outside the scope of the prescribed
-text, three further sources carry the technical weight of the paper.
-All are fully specified, with reproduced tables of contents, in
-Chapter~7 of the paper draft.
-
-\begin{itemize}[leftmargin=*,itemsep=2pt]
-\item S.\,R.~Sarangi, \emph{Next-Gen Computer Architecture: Till the End of
-  Silicon}, White Falcon 2023, ISBN 8119510143 \cite{sarangi2023nextgen}.
-  Chapter~9, \emph{Multicore Systems: Coherence, Consistency and Transactional
-  Memory}, runs to roughly 118 pages and is the source of the formalism used
-  throughout.
-\item V.~Nagarajan, D.\,J.~Sorin, M.\,D.~Hill and D.\,A.~Wood, \emph{A Primer
-  on Memory Consistency and Cache Coherence}, 2nd ed., Springer 2020
-  \cite{nagarajan2020primer}. The standard reference on the subject.
-\item Vendor architecture manuals (Intel SDM Vol.~3A; Arm ARM Ch.~B2;
-  RISC-V RVWMO), cited in preference to any textbook wherever the paper states
-  what a particular instruction set guarantees.
-\end{itemize}
-
-\subsection{Advisor}
-
-I will consult \textbf{Prof.~[Sumantra Dutta Roy / Subrat Kar --- SELECT ONE]}
-as advised.
-
-\medskip
-\noindent Zotero library \texttt{ELL305-MemoryConsistency} has been created and
-will be shared with Prof.~Subrat Kar. Bibliography is exported to
-\texttt{refs.bib} and rendered via BibTeX.
-
-\subsection{Progress}
-
-\subsubsection*{Summary}
+\subsection*{Summary}
 
 \begin{table}[H]
 \centering
@@ -133,9 +16,9 @@ WP1 & Foundations: prescribed textbook          & 31 Aug & \pct{55} \\
 WP2 & Advanced sources                          & 14 Sep & \pct{30} \\
 WP3 & Literature survey and Zotero              & 21 Sep & \pct{35} \\
 WP4 & Writing: formal, historical, methodological chapters & 24 Aug & \pct{90} \\
-WP5 & Litmus experiments on real hardware       & 28 Sep & \pct{10} \\
-WP6 & Simulator design and evaluation           & 26 Oct & \pct{0} \\
-WP7 & Verification                              & 02 Nov & \pct{0} \\
+WP5 & Experiment A: \code{herdtools7} litmus tests  & 28 Sep & \pct{10} \\
+WP6 & Experiment B: C++11 microbenchmarks + \code{perf} & 19 Oct & \pct{0} \\
+WP7 & Experiment C: gem5 (optional)               & 02 Nov & \pct{0} \\
 WP8 & Final assembly and appendices             & 11 Nov & \pct{0} \\
 \midrule
     & \textbf{Overall}                          &        & \pct{28} \\
@@ -150,7 +33,7 @@ chart must be corrected to reflect what has \emph{actually} been done before
 submission. Figures that overstate progress will be contradicted by the next
 draft and are not worth the marks they might gain.}}
 
-\subsubsection*{Gantt Chart}
+\subsection*{Gantt Chart}
 
 \clearpage
 \begin{figure}[H]
@@ -201,22 +84,22 @@ draft and are not worth the marks they might gain.}}
   \ganttbar[progress=90]{T4.3 Ch.\ 5 history}{1}{2} \\
   \ganttbar[progress=85]{T4.4 Ch.\ 6 methodology}{1}{2} \\
 
-  \ganttgroup[progress=10]{WP5 Litmus experiments}{2}{7} \\
-  \ganttbar[progress=25]{T5.1 Test harness}{2}{3} \\
-  \ganttbar[progress=5]{T5.2 Test catalogue}{3}{5} \\
-  \ganttbar[progress=0]{T5.3 Run on x86, AArch64}{5}{6} \\
+  \ganttgroup[progress=10]{WP5 Experiment A (litmus)}{2}{7} \\
+  \ganttbar[progress=25]{T5.1 herdtools7 setup}{2}{3} \\
+  \ganttbar[progress=5]{T5.2 Litmus corpus}{3}{5} \\
+  \ganttbar[progress=0]{T5.3 Run on x86; herd7 cross-check}{5}{6} \\
   \ganttbar[progress=0]{T5.4 Write Ch.\ 8}{6}{7} \\
 
-  \ganttgroup[progress=0]{WP6 Simulator}{4}{11} \\
-  \ganttbar[progress=0]{T6.1 Cores, store buffers}{4}{6} \\
-  \ganttbar[progress=0]{T6.2 MESI directory}{5}{7} \\
-  \ganttbar[progress=0]{T6.3 Ordering policies}{7}{9} \\
-  \ganttbar[progress=0]{T6.4 Workloads, sweeps}{8}{10} \\
+  \ganttgroup[progress=0]{WP6 Experiment B (C++11)}{4}{11} \\
+  \ganttbar[progress=0]{T6.1 Workload implementation}{4}{6} \\
+  \ganttbar[progress=0]{T6.2 memory\_order variants}{5}{7} \\
+  \ganttbar[progress=0]{T6.3 Emitted-assembly audit}{7}{9} \\
+  \ganttbar[progress=0]{T6.4 perf measurement}{8}{10} \\
   \ganttbar[progress=0]{T6.5 Write Ch.\ 9--10}{9}{11} \\
 
-  \ganttgroup[progress=0]{WP7 Verification}{9}{12} \\
-  \ganttbar[progress=0]{T7.1 Axiomatic checker}{9}{11} \\
-  \ganttbar[progress=0]{T7.2 Write Ch.\ 11}{11}{12} \\
+  \ganttgroup[progress=0]{WP7 Experiment C (gem5, opt.)}{9}{12} \\
+  \ganttbar[progress=0]{T7.1 gem5 setup}{9}{11} \\
+  \ganttbar[progress=0]{T7.2 Parameter sweeps}{11}{12} \\
 
   \ganttgroup[progress=0]{WP8 Final assembly}{10}{13} \\
   \ganttbar[progress=0]{T8.1 Ch.\ 12--13}{10}{12} \\
@@ -234,7 +117,7 @@ dates for v0.2 and v0.3 are estimates pending confirmation.}
 \end{figure}
 \clearpage
 
-\subsubsection*{Work Package Detail}
+\subsection*{Work Package Detail}
 
 \paragraph{WP1 --- Foundations (\pct{55}).}
 \begin{itemize}[leftmargin=*,itemsep=1pt]
@@ -354,17 +237,73 @@ Topic requires material beyond the course
 \end{tabular}
 \end{table}
 
-\subsection{Plan to v0.2}
+\subsection{Research Questions and Experimental Plan}
+
+The remainder of the paper turns from exposition to investigation.
+The plan is stated now so that the methodology can be assessed in advance of
+the results.
+
+\subsubsection*{Research questions}
+
+\begin{description}[leftmargin=1.6cm,style=nextline,font=\normalfont\bfseries]
+\item[RQ1 Observation] Which ``surprising'' memory orderings are actually
+  observable on commodity x86 hardware, and do they match the x86-TSO model
+  exactly? (SB observable; IRIW not; MP safe without a fence.)
+\item[RQ2 Cost] What is the concrete performance cost of each C++11
+  \code{memory\_order} level on the same workload, and how does it map to the
+  fences the compiler emits?
+\item[RQ3 Microarchitecture] How do microarchitectural parameters ---
+  store-buffer depth, speculation, coherence protocol --- change which
+  orderings are observable and how expensive ordering is?
+\end{description}
+
+\subsubsection*{Experiment A --- litmus testing on real hardware (primary)}
+
+Using \code{herdtools7} --- \code{litmus7} to run tests on hardware,
+\code{herd7} to simulate a model --- run the canonical suite (SB, MP, LB, IRIW,
+plus Dekker-style tests) on an x86 machine, collecting outcome histograms over
+billions of iterations.
+Cross-check every observed outcome against the \code{herd7} prediction under the
+published x86-TSO \code{.cat} model.
+Expected result: SB observable, IRIW never observed, MP safe without barriers,
+confirming TSO.
+This answers RQ1.
+
+Adopting \code{herdtools7} rather than a hand-written harness is a deliberate
+methodological choice: it is the standard tool of the field, it already
+implements the affinity and stress options needed to observe rare outcomes, and
+\code{herd7} provides the model-checking side without our having to build one.
+
+\subsubsection*{Experiment B --- C++11 atomics microbenchmarks (primary)}
+
+Implement small representative workloads --- a shared counter, a
+producer/consumer following the MP pattern, and a spinlock handoff --- templated
+over \code{memory\_order} (relaxed, acquire/release, seq\_cst).
+Compile at a fixed optimisation level, inspect the emitted assembly to record
+which fences each variant produces, and measure throughput and latency with
+Linux \code{perf}.
+This answers RQ2 and ties source semantics to hardware behaviour to measured
+cost.
+
+\subsubsection*{Experiment C --- gem5 simulation (optional)}
+
+If time allows, use gem5 \cite{binkert2011gem5} to vary store-buffer depth and
+coherence settings and observe the effect on litmus outcomes and microbenchmark
+cost, isolating causes that are fixed on real silicon.
+This addresses RQ3.
+It is flagged optional given its setup complexity; the paper stands on
+Experiments~A and~B.
+
+\subsection{Immediate Plan to v0.2}
 
 \begin{enumerate}[leftmargin=*,itemsep=2pt]
-\item Complete WP1 (T1.2--T1.4) and advance WP2 to \pct{70}.
-\item Read the six load-bearing papers in full (T3.2 to \pct{100}).
-\item Implement the litmus harness and the full test catalogue; obtain
-  observation counts on x86 and, if hardware permits, AArch64.
-\item Draft Chapter~8 (Results I) from those measurements.
-\item Begin WP6: cores, store buffers and load queue.
-\item Insert the measured SB violation count into \S1.1 of the paper, so that
-  the opening example is a measurement rather than an assertion.
+\item Complete WP1 and advance WP2; read the six load-bearing papers in full.
+\item Install and validate \code{herdtools7}; reproduce one known litmus result.
+\item Run the canonical suite on x86 and record outcome histograms.
+\item Implement the three Experiment~B workloads and capture emitted assembly.
+\item Draft the Experiment~A results chapter.
+\item Merge the second author's survey draft into the paper proper per
+  \code{MERGE-PLAN.md}.
 \end{enumerate}
 
 \subsection{Repository}

@@ -1,0 +1,120 @@
+\section{Topic, Scope and Supervision}
+
+\subsection{Chosen Topic}
+
+The chosen topic is \textbf{memory consistency models} in shared-memory
+multiprocessors.
+
+\medskip
+\noindent\textbf{Working title.}\\
+\emph{Revisiting Sequential Consistency: Memory Consistency Models, Their Cost,
+and Whether Speculation Has Made Strong Ordering Affordable}
+
+\medskip
+\noindent\textbf{Scope.}
+A shared-memory multiprocessor must specify when, and in what order, one core's
+writes become visible to the others.
+That specification is the machine's memory consistency model, and it is an
+architectural contract as binding as the instruction set.
+The paper covers the design space from sequential consistency through TSO, PSO,
+weak ordering and release consistency; the mechanisms that make relaxation
+necessary (store buffers, out-of-order execution) and those that could make it
+unnecessary (speculative execution with coherence-based detection); and the
+historical argument that led the industry to reject sequential consistency
+around 1990.
+
+\medskip
+\noindent\textbf{Guiding question.}
+Sequential consistency was rejected as a hardware memory model on performance
+grounds in the late 1980s, on machines that did not speculate.
+A modern out-of-order core already contains both mechanisms a strong model
+requires --- coherence invalidations that announce remote writes, and a
+squash-and-restart path built for branch misprediction recovery.
+The paper asks whether the performance objection still holds, and, if it does
+not, what else accounts for the continued absence of sequentially consistent
+hardware.
+
+\medskip
+\noindent The work is organised around four questions:
+
+\begin{description}[leftmargin=2.2cm,style=nextline,font=\normalfont\bfseries]
+\item[Q1 Formal] Can SC, TSO, PSO, weak ordering and release consistency be
+  expressed as successively weaker constraints on a single set of ordering
+  relations, with strict containment proved rather than asserted?
+\item[Q2 Empirical] Which relaxations are \emph{observable} on real x86 and ARM
+  hardware, as distinct from those merely \emph{permitted} by the architecture?
+\item[Q3 Quantitative] Holding the microarchitecture fixed and varying only the
+  memory model, what does sequential consistency cost with and without
+  speculative load execution, as core count rises?
+\item[Q4 Interpretive] If speculative SC proves inexpensive, what accounts for
+  its absence from shipping processors?
+\end{description}
+
+\subsection{Mapping to the Prescribed Textbook}
+
+The prescribed text is S.\,R.~Sarangi, \emph{Basic Computer Architecture},
+version 3.09 \cite{sarangi2025basic}.
+The topic maps principally to \textbf{Chapter 12, \emph{Multiprocessor
+Systems}}, and within it to \textbf{\S12.4, \emph{MIMD Multiprocessors}}.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}llp{6.6cm}@{}}
+\toprule
+\textbf{\S} & \textbf{Title (page)} & \textbf{Role in the paper} \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{Primary --- Chapter 12}} \\
+12.4.1 & Logical Point of View (579)          & Shared-memory abstraction. \\
+12.4.2 & Coherence (581)                      & The coherence/consistency distinction, developed at length. \\
+12.4.3 & \textbf{Memory Consistency (583)}    & \textbf{The core section. The paper is an extension of this.} \\
+12.4.5 & Shared Caches (596)                  & Background. \\
+12.4.6 & Coherent Private Caches (596)        & Extended to full MESI/MOESI and directory protocols. \\
+12.4.7 & Implementing a Memory Consistency Model$^*$ (603) & Direct antecedent of the speculative-SC discussion. \\
+\addlinespace
+\multicolumn{3}{@{}l}{\textbf{Supporting}} \\
+10.4   & Pipeline Hazards (420)               & Reordering and dependences. \\
+10.9   & Performance Metrics (463)            & Benchmarking framework. \\
+10.11.4& Out-of-Order Pipelines (492)         & Speculation and the squash mechanism. \\
+11.2   & Caches (517)                         & Private caches, non-blocking misses. \\
+11.3   & The Memory System (532)              & Latency figures motivating the store buffer. \\
+12.2.2 & Shared Memory vs Message Passing (571)& Framing. \\
+12.2.3 & Amdahl's Law (576)                   & Scaling discussion. \\
+12.6   & Interconnection Networks (620)       & Coherence latency in the simulator. \\
+App.~A & Cortex-A8/A15, Sandy Bridge (734--746)& Real-machine case studies. \\
+\bottomrule
+\end{tabular}
+\caption{Mapping of the topic onto the prescribed text. $^*$ denotes a section
+marked advanced.}
+\end{table}
+
+\noindent\textbf{Additional texts.} Because \S12.4.3 treats only sequential
+consistency and the relaxed models are outside the scope of the prescribed
+text, three further sources carry the technical weight of the paper.
+All are fully specified, with reproduced tables of contents, in
+Chapter~7 of the paper draft.
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+\item S.\,R.~Sarangi, \emph{Next-Gen Computer Architecture: Till the End of
+  Silicon}, White Falcon 2023, ISBN 8119510143 \cite{sarangi2023nextgen}.
+  Chapter~9, \emph{Multicore Systems: Coherence, Consistency and Transactional
+  Memory}, runs to roughly 118 pages and is the source of the formalism used
+  throughout.
+\item V.~Nagarajan, D.\,J.~Sorin, M.\,D.~Hill and D.\,A.~Wood, \emph{A Primer
+  on Memory Consistency and Cache Coherence}, 2nd ed., Springer 2020
+  \cite{nagarajan2020primer}. The standard reference on the subject.
+\item Vendor architecture manuals (Intel SDM Vol.~3A; Arm ARM Ch.~B2;
+  RISC-V RVWMO), cited in preference to any textbook wherever the paper states
+  what a particular instruction set guarantees.
+\end{itemize}
+
+\subsection{Advisor}
+
+I will consult \textbf{Prof.~[Sumantra Dutta Roy / Subrat Kar --- SELECT ONE]}
+as advised.
+
+\medskip
+\noindent Zotero library \texttt{ELL305-MemoryConsistency} has been created and
+will be shared with Prof.~Subrat Kar. Bibliography is exported to
+\texttt{refs.bib} and rendered via BibTeX.
+
